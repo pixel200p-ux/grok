@@ -13,7 +13,7 @@ export const Route = createRootRoute({
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: APP_NAME },
-      { name: "description", content: "Quản lý danh mục đầu1 tư thuần tài sản và Trade T+" },
+      { name: "description", content: "Quản lý danh mục đầu tư thuần tài sản và Trade T+" },
       { name: "theme-color", content: "#0A2540" },
     ],
     links: [
