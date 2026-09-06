@@ -1,6 +1,6 @@
 import { AllocChart } from "@/components/AllocChart";
 import { HoldingsTable } from "@/components/HoldingsTable";
-import { Kpi } from "@/components/Kpi";
+import { NavCapitalChart } from "@/components/NavCapitalChart";
 import { TplusOpenCard } from "@/components/TplusOpenCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -212,33 +212,46 @@ export function DashboardPage() {
         </section>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-5">
-        <Card className="lg:col-span-2">
-          <CardTitle>Phân bổ</CardTitle>
-          <CardDesc className="mb-3">DCDS → ETF → Stock → Crypto → Bank</CardDesc>
-          <AllocChart data={alloc} />
+            {/* Hàng biểu đồ: Phân bổ (cột ngang) + NAV/Vốn gốc 6 tháng */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card className="p-4">
+          <CardTitle>Phân bổ danh mục</CardTitle>
+          <CardDesc className="mb-3">DCDS → ETF → Stock → Crypto → Bank · hiển thị % và giá trị</CardDesc>
+          <AllocChart data={alloc} usdVnd={usd} />
         </Card>
-        <Card className="lg:col-span-3">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <CardTitle>Holdings</CardTitle>
-              <CardDesc>VPS / SSI độc lập · T+ OPEN cộng vào SL</CardDesc>
-            </div>
-            <div className="flex gap-1">
-              {(["ALL", "vps", "ssi"] as const).map((f) => (
-                <button
-                  key={f}
-                  onClick={() => setStockFilter(f)}
-                  className={`min-h-10 rounded-md border px-3 text-xs ${stockFilter === f ? "border-primary bg-primary/10" : "border-border"}`}
-                >
-                  {f === "ALL" ? "All" : f.toUpperCase()}
-                </button>
-              ))}
-            </div>
-          </div>
-          <HoldingsTable rows={holdings} usdVnd={usd} />
+
+        <Card className="p-4">
+          <CardTitle>NAV &amp; Original Capital</CardTitle>
+          <CardDesc className="mb-3">
+            6 tháng gần nhất · chỉ các mốc có thay đổi (nạp/rút hoặc giao dịch)
+          </CardDesc>
+          <NavCapitalChart ledger={ledger} usdVnd={usd} />
         </Card>
       </div>
+
+      {/* Bảng Holdings full chiều ngang */}
+      <Card className="p-4">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <CardTitle>Holdings</CardTitle>
+            <CardDesc>VPS / SSI độc lập · T+ OPEN cộng vào SL</CardDesc>
+          </div>
+          <div className="flex gap-1">
+            {(["ALL", "vps", "ssi"] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => setStockFilter(f)}
+                className={`min-h-10 rounded-md border px-3 text-xs ${
+                  stockFilter === f ? "border-primary bg-primary/10" : "border-border"
+                }`}
+              >
+                {f === "ALL" ? "All" : f.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        </div>
+        <HoldingsTable rows={holdings} usdVnd={usd} />
+      </Card>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>

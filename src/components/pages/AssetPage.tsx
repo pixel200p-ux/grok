@@ -44,7 +44,7 @@ export function AssetPage({ assetType }: { assetType: AssetType }) {
 
   const pie = holdings.map((h) => ({
     key: h.assetId,
-    label: `${h.symbol} (${h.accountName})`,
+        label: h.symbol,
     value: h.marketValue,
     pct: holdings.reduce((s, x) => s + x.marketValue, 0) > 0 ? (h.marketValue / holdings.reduce((s, x) => s + x.marketValue, 0)) * 100 : 0,
   }));
@@ -89,24 +89,27 @@ export function AssetPage({ assetType }: { assetType: AssetType }) {
         </div>
       </div>
 
-      {assetType === "STOCK" ? (
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card>
+                  {assetType === "STOCK" && (
+        <div className="grid gap-4 md:grid-cols-10">
+          <Card className={stockFilter === "ssi" ? "md:col-span-3" : stockFilter === "vps" ? "md:col-span-7" : "md:col-span-5"}>
             <CardTitle>VPS</CardTitle>
-            <AllocChart data={vpsPie} />
+            <AllocChart data={vpsPie} usdVnd={usd} />
           </Card>
-          <Card>
+          <Card className={stockFilter === "vps" ? "md:col-span-3" : stockFilter === "ssi" ? "md:col-span-7" : "md:col-span-5"}>
             <CardTitle>SSI</CardTitle>
-            <AllocChart data={ssiPie} />
+            <AllocChart data={ssiPie} usdVnd={usd} />
           </Card>
         </div>
-      ) : (
+      )}
+
+      {assetType === "CRYPTO" && (
         <Card>
           <CardTitle>Phân bổ mã</CardTitle>
           <AllocChart
+            usdVnd={usd}
             data={pie.map((p) => ({
               ...p,
-              key: p.key.includes("DCDS") ? "DCDS" : p.key.includes("ETF") ? "ETF" : p.key.includes("CRYPTO") || assetType === "CRYPTO" ? "CRYPTO" : "STOCK",
+              key: "CRYPTO",
             }))}
           />
         </Card>
