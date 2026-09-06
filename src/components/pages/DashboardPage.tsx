@@ -33,7 +33,6 @@ export function DashboardPage() {
   const setStockFilter = useUiStore((s) => s.setStockFilter);
   const openCapital = useUiStore((s) => s.openCapital);
   const openTx = useUiStore((s) => s.openTx);
-  const openBank = useUiStore((s) => s.openBank);
   const rateMut = usePortfolioMutation((d: Parameters<typeof confirmBankRate>[0]) => confirmBankRate(d), "Đã cập nhật lãi suất");
   const [rateDraft, setRateDraft] = useState<Record<string, string>>({});
 
@@ -80,9 +79,6 @@ export function DashboardPage() {
           <Button variant="outline" onClick={() => openTx()}>
             Giao dịch
           </Button>
-          <Button variant="outline" onClick={openBank}>
-            Mở sổ Bank
-          </Button>
         </div>
       </div>
 
@@ -121,16 +117,78 @@ export function DashboardPage() {
         </Card>
       ))}
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi label="Original Capital" value={displayMoney(state.originalCapital, currency, usd)} hint="SUM(Deposit) − SUM(Withdrawal)" />
-        <Kpi label="NAV" value={displayMoney(state.nav, currency, usd)} hint="Tổng giá trị thị trường tài sản" />
-        <Kpi
-          label="Lãi / lỗ"
-          value={displayMoney(state.totalPnl, currency, usd)}
-          hint={formatPct(state.totalReturnPct)}
-          tone={state.totalPnl > 0 ? "profit" : state.totalPnl < 0 ? "loss" : "default"}
-        />
-        <Kpi label="T+ đã hạ vốn" value={displayMoney(state.tplusProfit, currency, usd)} hint="Lợi nhuận T+ ròng đã COMPLETED" />
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)_minmax(0,1fr)] md:items-stretch">
+        <Card className="flex flex-col p-4">
+          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            NAV / Original Capital
+          </p>
+          <div className="mt-3 flex items-end justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] text-muted-foreground">NAV</p>
+              <p className="truncate font-mono text-xl font-semibold tabular-nums tracking-tight">
+                {displayMoney(state.nav, currency, usd)}
+              </p>
+            </div>
+            <span className="mb-0.5 shrink-0 text-lg font-light text-muted-foreground/40">/</span>
+            <div className="min-w-0 flex-1 text-right">
+              <p className="text-[11px] text-muted-foreground">Original Capital</p>
+              <p className="truncate font-mono text-sm font-medium tabular-nums text-muted-foreground">
+                {displayMoney(state.originalCapital, currency, usd)}
+              </p>
+            </div>
+          </div>
+          <div className="mt-4">
+            <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+              <div
+                className={`h-full rounded-full ${state.nav >= state.originalCapital ? "bg-profit" : "bg-loss"}`}
+                style={{
+                  width: `${
+                    state.originalCapital > 0
+                      ? Math.min(100, (state.nav / Math.max(state.originalCapital, 1)) * 100)
+                      : 0
+                  }%`,
+                }}
+              />
+            </div>
+          </div>
+          <p className="mt-auto flex items-center justify-between gap-2 border-t border-border pt-3 text-[11px] text-muted-foreground">
+            <span>Tỷ lệ NAV trên vốn gốc</span>
+            <span className="shrink-0 font-mono tabular-nums">
+              {state.originalCapital > 0
+                ? `${(state.nav / state.originalCapital).toLocaleString("en-US", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}×`
+                : "—"}
+            </span>
+          </p>
+        </Card>
+
+        <Card className="flex flex-col p-4">
+          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Lãi / lỗ</p>
+          <p
+            className={`mt-3 font-mono text-xl font-semibold tabular-nums ${
+              state.totalPnl > 0 ? "text-profit" : state.totalPnl < 0 ? "text-loss" : ""
+            }`}
+          >
+            {displayMoney(state.totalPnl, currency, usd)}
+          </p>
+          <p className="mt-1 font-mono text-sm tabular-nums text-muted-foreground">{formatPct(state.totalReturnPct)}</p>
+          <p className="mt-auto border-t border-border pt-3 text-[11px] leading-snug text-muted-foreground">
+            Đã chốt + chưa chốt + cổ tức tiền mặt + lãi Bank
+          </p>
+        </Card>
+
+        <Card className="flex flex-col p-4">
+          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">T+ đã hạ vốn</p>
+          <p className="mt-3 font-mono text-xl font-semibold tabular-nums">
+            {displayMoney(state.tplusProfit, currency, usd)}
+          </p>
+          <p className="mt-1 text-sm text-transparent">.</p>
+          <p className="mt-auto border-t border-border pt-3 text-[11px] leading-snug text-muted-foreground">
+            Lợi nhuận T+ ròng đã COMPLETED
+          </p>
+        </Card>
       </div>
 
       {state.tplusCards.length > 0 && (

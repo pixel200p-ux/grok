@@ -4,9 +4,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { useUiStore } from "@/lib/ui-store";
 import { usePortfolio, usePortfolioMutation } from "@/lib/use-portfolio";
-import { saveTransaction } from "@/lib/api/portfolio";
+import { saveBank, saveTransaction } from "@/lib/api/portfolio";
 import { dcdsQty } from "@/engine/replay";
 import { parseBrokerPrice, parseDecimal, parseVndAmount, formatQty } from "@/engine/money";
 import { todayYmd, formatViDate } from "@/engine/dates";
@@ -14,12 +15,22 @@ import { displayPrice } from "@/lib/display";
 import type { AssetType, FeeProfile, TxType } from "@/engine/types";
 import { useEffect, useMemo, useState } from "react";
 
-const TYPES: { value: AssetType; label: string }[] = [
+type FormKind = AssetType | "BANK";
+
+const TYPES: { value: FormKind; label: string }[] = [
   { value: "DCDS", label: "DCDS" },
   { value: "ETF", label: "ETF" },
   { value: "STOCK", label: "Stock" },
   { value: "CRYPTO", label: "Crypto" },
+  { value: "BANK", label: "Bank" },
 ];
+
+const BANKS = ["VietinBank", "Vietcombank", "MB", "Techcombank", "BIDV", "Agribank", "ACB", "VPBank", "TPBank", "Khác"];
+
+function cryptoQty(amountUsd: number, priceUsd: number): number {
+  if (priceUsd <= 0) return 0;
+  return Math.round((amountUsd / priceUsd) * 1e8) / 1e8;
+}
 
 function accountFor(type: AssetType, stockAccount: string): { id: string; currency: string; profile: FeeProfile } {
   if (type === "STOCK") return { id: stockAccount, currency: "VND", profile: stockAccount === "ssi" ? "STOCK_SSI" : "STOCK_VPS" };
@@ -34,8 +45,9 @@ export function TxDialog() {
   const currency = useUiStore((s) => s.currency);
   const { data } = usePortfolio();
   const mut = usePortfolioMutation((d: Parameters<typeof saveTransaction>[0]) => saveTransaction(d), "Đã ghi giao dịch");
+  const bankMut = usePortfolioMutation((d: Parameters<typeof saveBank>[0]) => saveBank(d), "Đã mở sổ tiết kiệm");
 
-  const [assetType, setAssetType] = useState<AssetType>("STOCK");
+  const [kind, setKind] = useState<FormKind>("STOCK");
   const [stockAccount, setStockAccount] = useState("vps");
   const [txType, setTxType] = useState<TxType>("BUY");
   const [symbol, setSymbol] = useState("");
@@ -52,9 +64,16 @@ export function TxDialog() {
   const [taxOverride, setTaxOverride] = useState("");
   const [matchQty, setMatchQty] = useState<Record<string, string>>({});
 
+  const [bankName, setBankName] = useState("VietinBank");
+  const [bankCustom, setBankCustom] = useState("");
+  const [bankPrincipal, setBankPrincipal] = useState("");
+  const [bankTerm, setBankTerm] = useState("6");
+  const [bankRate, setBankRate] = useState("5.5");
+  const [bankRollover, setBankRollover] = useState(true);
+
   useEffect(() => {
     if (!prefill) return;
-    setAssetType(prefill.assetType ?? "STOCK");
+    setKind(prefill.assetType ?? "STOCK");
     setStockAccount(prefill.accountId === "ssi" ? "ssi" : "vps");
     setTxType(prefill.txType ?? "BUY");
     setSymbol(prefill.symbol ?? "");
@@ -70,23 +89,33 @@ export function TxDialog() {
     setTaxOverride("");
     setMatchQty({});
     setFx(data?.state.usdVnd ? String(data.state.usdVnd) : "25000");
+    setBankPrincipal("");
   }, [prefill, data?.state.usdVnd]);
 
+  const isBank = kind === "BANK";
+  const assetType: AssetType = isBank ? "STOCK" : kind;
   const acc = accountFor(assetType, stockAccount);
   const feeRow = data?.ledger.fees.find((f) => f.profile === acc.profile);
   const usdVnd = data?.state.usdVnd ?? 25000;
 
+  const isDcdsBuy = kind === "DCDS" && txType === "BUY";
+  const isCryptoBuy = kind === "CRYPTO" && txType === "BUY";
+
   const parsedPrice = useMemo(() => {
-    if (assetType === "CRYPTO") return parseDecimal(price);
-    if (assetType === "DCDS") return parseVndAmount(price);
+    if (kind === "CRYPTO") return parseDecimal(price);
+    if (kind === "DCDS") return parseVndAmount(price);
     return parseBrokerPrice(price);
-  }, [price, assetType]);
+  }, [price, kind]);
 
   const parsedQty = parseDecimal(qty);
-  const parsedAmount = assetType === "DCDS" && txType === "BUY" ? parseVndAmount(amount) : parsedQty * parsedPrice;
-  const computedQty = assetType === "DCDS" && txType === "BUY" ? dcdsQty(parsedAmount, parsedPrice) : parsedQty;
+  const parsedAmount = isDcdsBuy ? parseVndAmount(amount) : isCryptoBuy ? parseDecimal(amount) : parsedQty * parsedPrice;
+  const computedQty = isDcdsBuy
+    ? dcdsQty(parsedAmount, parsedPrice)
+    : isCryptoBuy
+      ? cryptoQty(parsedAmount, parsedPrice)
+      : parsedQty;
 
-  const notional = assetType === "DCDS" && txType === "BUY" ? parsedAmount : computedQty * parsedPrice;
+  const notional = isDcdsBuy || isCryptoBuy ? parsedAmount : computedQty * parsedPrice;
   const defaultFeePct = txType === "SELL" ? (feeRow?.sellFeePct ?? 0) : (feeRow?.buyFeePct ?? 0);
   const defaultTaxPct = txType === "SELL" ? (feeRow?.sellTaxPct ?? 0) : 0;
   const autoFee = (notional * defaultFeePct) / 100;
@@ -106,11 +135,37 @@ export function TxDialog() {
     setQty(String(sum));
   }, [prefill?.matchAllOpen, openLots.length]);
 
-  const canTplus = (assetType === "STOCK" || assetType === "CRYPTO") && txType === "BUY";
-  const canMatch = (assetType === "STOCK" || assetType === "CRYPTO") && txType === "SELL" && openLots.length > 0;
+  const canTplus = (kind === "STOCK" || kind === "CRYPTO") && txType === "BUY";
+  const canMatch = (kind === "STOCK" || kind === "CRYPTO") && txType === "SELL" && openLots.length > 0;
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
+
+    if (isBank) {
+      const name = bankName === "Khác" ? bankCustom.trim() : bankName;
+      const p = parseVndAmount(bankPrincipal);
+      if (!name || p <= 0) return;
+      bankMut.mutate(
+        {
+          data: {
+            bankName: name,
+            principal: p,
+            startDate: date,
+            termMonths: Number(bankTerm) || 1,
+            interestRate: parseDecimal(bankRate),
+            autoRollover: bankRollover,
+          },
+        },
+        {
+          onSuccess: () => {
+            close();
+            setBankPrincipal("");
+          },
+        },
+      );
+      return;
+    }
+
     const sym = symbol.trim().toUpperCase();
     if (!sym) return;
     const matches = Object.entries(matchQty)
@@ -133,7 +188,7 @@ export function TxDialog() {
           fee,
           tax,
           tradeTplus: canTplus && tplus,
-          fxRate: assetType === "CRYPTO" ? parseDecimal(fx) || usdVnd : null,
+          fxRate: kind === "CRYPTO" ? parseDecimal(fx) || usdVnd : null,
           dividendPerShare: null,
           stockDivQty: txType === "STOCK_DIVIDEND" ? parseDecimal(stockDivQty) : null,
           currentPrice: parsedPrice || undefined,
@@ -145,7 +200,7 @@ export function TxDialog() {
   }
 
   const txOptions =
-    assetType === "STOCK"
+    kind === "STOCK"
       ? [
           { value: "BUY", label: "Buy" },
           { value: "SELL", label: "Sell" },
@@ -157,6 +212,8 @@ export function TxDialog() {
           { value: "SELL", label: "Sell" },
         ];
 
+  const saving = mut.isPending || bankMut.isPending;
+
   return (
     <Dialog open={!!prefill} onOpenChange={(o) => !o && close()}>
       <DialogContent title="Giao dịch" className="max-w-xl">
@@ -167,150 +224,214 @@ export function TxDialog() {
                 key={t.value}
                 type="button"
                 onClick={() => {
-                  setAssetType(t.value);
+                  setKind(t.value);
                   if (t.value !== "STOCK" && (txType === "CASH_DIVIDEND" || txType === "STOCK_DIVIDEND")) setTxType("BUY");
                   if (t.value !== "STOCK" && t.value !== "CRYPTO") setTplus(false);
                 }}
-                className={`min-h-10 rounded-full border px-3 text-xs font-medium ${assetType === t.value ? "border-primary bg-primary/10 text-primary" : "border-border"}`}
+                className={`min-h-10 rounded-full border px-3 text-xs font-medium ${kind === t.value ? "border-primary bg-primary/10 text-primary" : "border-border"}`}
               >
                 {t.label}
               </button>
             ))}
           </div>
 
-          {assetType === "STOCK" && (
-            <div className="flex gap-2">
-              {(["vps", "ssi"] as const).map((id) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setStockAccount(id)}
-                  className={`min-h-10 flex-1 rounded-md border text-sm ${stockAccount === id ? "border-primary bg-primary/10" : "border-border"}`}
-                >
-                  {id.toUpperCase()}
-                </button>
-              ))}
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label>Loại</Label>
-              <Select value={txType} onValueChange={(v) => setTxType(v as TxType)} options={txOptions} />
-            </div>
-            <div className="space-y-1">
-              <Label>Ngày</Label>
-              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label>Mã</Label>
-              <Input value={symbol} onChange={(e) => setSymbol(e.target.value)} placeholder={assetType === "CRYPTO" ? "BTC" : "MBB"} required />
-            </div>
-            <div className="space-y-1">
-              <Label>Tên</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Tùy chọn" />
-            </div>
-          </div>
-
-          {txType === "CASH_DIVIDEND" && (
-            <div className="space-y-1">
-              <Label>Tổng tiền thực nhận (VND)</Label>
-              <Input value={divTotal} onChange={(e) => setDivTotal(e.target.value)} placeholder="1,000,000" />
-            </div>
-          )}
-
-          {txType === "STOCK_DIVIDEND" && (
-            <div className="space-y-1">
-              <Label>Số lượng CP thưởng thực nhận</Label>
-              <Input value={stockDivQty} onChange={(e) => setStockDivQty(e.target.value)} />
-              <p className="text-xs text-muted-foreground">Tăng holdings, pha loãng giá vốn trung bình.</p>
-            </div>
-          )}
-
-          {txType === "BUY" || txType === "SELL" ? (
+          {isBank ? (
             <>
-              {assetType === "DCDS" && txType === "BUY" ? (
-                <>
-                  <div className="space-y-1">
-                    <Label>Số tiền mua (VND)</Label>
-                    <Input value={amount} onChange={(e) => setAmount(e.target.value)} required />
-                  </div>
-                  <div className="space-y-1">
-                    <Label>Giá CCQ (VND)</Label>
-                    <Input value={price} onChange={(e) => setPrice(e.target.value)} required />
-                  </div>
-                  <div className="space-y-1">
-                    <Label>Số CCQ (tự tính, 4 số thập phân)</Label>
-                    <Input readOnly value={computedQty ? formatQty(computedQty, "DCDS") : ""} className="bg-muted" />
-                  </div>
-                </>
-              ) : (
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label>Khối lượng</Label>
-                    <Input value={qty} onChange={(e) => setQty(e.target.value)} placeholder="1000" required />
-                  </div>
-                  <div className="space-y-1">
-                    <Label>Giá {assetType === "CRYPTO" ? "(USD)" : assetType === "DCDS" ? "(VND)" : "(13.5 = 13.500 ₫)"}</Label>
-                    <Input value={price} onChange={(e) => setPrice(e.target.value)} placeholder={assetType === "CRYPTO" ? "65000" : "13.5"} required />
-                  </div>
+              <p className="text-sm text-muted-foreground">
+                Mở sổ tiết kiệm. Mô hình thuần tài sản: không trừ tiền mặt. NAV cộng giá trị sổ đang hiệu lực.
+              </p>
+              <div className="space-y-1">
+                <Label>Ngân hàng</Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {BANKS.map((b) => (
+                    <button
+                      key={b}
+                      type="button"
+                      onClick={() => setBankName(b)}
+                      className={`min-h-10 rounded-full border px-3 text-xs ${bankName === b ? "border-primary bg-primary/10 text-primary" : "border-border"}`}
+                    >
+                      {b}
+                    </button>
+                  ))}
                 </div>
-              )}
-
-              {assetType === "CRYPTO" && (
+                {bankName === "Khác" && (
+                  <Input className="mt-2" value={bankCustom} onChange={(e) => setBankCustom(e.target.value)} placeholder="Tên ngân hàng" />
+                )}
+              </div>
+              <div className="space-y-1">
+                <Label>Số tiền gửi (VND)</Label>
+                <Input value={bankPrincipal} onChange={(e) => setBankPrincipal(e.target.value)} placeholder="100,000,000" required />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label>Tỷ giá USD/VND khóa theo lệnh</Label>
-                  <Input value={fx} onChange={(e) => setFx(e.target.value)} />
+                  <Label>Ngày gửi</Label>
+                  <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
                 </div>
-              )}
-
-              {canTplus && (
-                <label className="flex items-center gap-2 text-sm">
-                  <Checkbox checked={tplus} onCheckedChange={(v) => setTplus(v === true)} />
-                  Trade T+ — lệnh này vào phân tích T+, không cộng vào giá vốn gốc
-                </label>
-              )}
-
-              {canMatch && (
-                <div className="space-y-2 rounded-lg border border-border p-3">
-                  <p className="text-sm font-medium">Khớp T+ thủ công</p>
-                  <p className="text-xs text-muted-foreground">Chọn lệnh BUY T+ đang OPEN để khớp. Phần không khớp trừ vị thế gốc.</p>
-                  {openLots.map((l) => (
-                    <div key={l.buyTxId} className="flex items-center gap-2 text-sm">
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate">
-                          {formatViDate(l.buyDate)} · {l.qtyRemaining}/{l.qtyOriginal} @ {displayPrice(l.buyPrice, assetType, currency, usdVnd)}
-                        </p>
-                      </div>
-                      <Input
-                        className="w-24"
-                        value={matchQty[l.buyTxId] ?? ""}
-                        onChange={(e) => setMatchQty((m) => ({ ...m, [l.buyTxId]: e.target.value }))}
-                        placeholder="0"
-                      />
-                    </div>
+                <div className="space-y-1">
+                  <Label>Kỳ hạn (tháng)</Label>
+                  <Input value={bankTerm} onChange={(e) => setBankTerm(e.target.value)} />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label>Lãi suất (%/năm)</Label>
+                <Input value={bankRate} onChange={(e) => setBankRate(e.target.value)} />
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <Label>Tự động tái tục</Label>
+                <Switch checked={bankRollover} onCheckedChange={setBankRollover} />
+              </div>
+            </>
+          ) : (
+            <>
+              {kind === "STOCK" && (
+                <div className="flex gap-2">
+                  {(["vps", "ssi"] as const).map((id) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setStockAccount(id)}
+                      className={`min-h-10 flex-1 rounded-md border text-sm ${stockAccount === id ? "border-primary bg-primary/10" : "border-border"}`}
+                    >
+                      {id.toUpperCase()}
+                    </button>
                   ))}
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label>Phí (mặc định {defaultFeePct}%)</Label>
-                  <Input value={feeOverride} onChange={(e) => setFeeOverride(e.target.value)} placeholder={String(Math.round(autoFee * 100) / 100)} />
+                  <Label>Loại</Label>
+                  <Select value={txType} onValueChange={(v) => setTxType(v as TxType)} options={txOptions} />
                 </div>
                 <div className="space-y-1">
-                  <Label>Thuế (mặc định {defaultTaxPct}%)</Label>
-                  <Input value={taxOverride} onChange={(e) => setTaxOverride(e.target.value)} placeholder={String(Math.round(autoTax * 100) / 100)} />
+                  <Label>Ngày</Label>
+                  <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
                 </div>
               </div>
-            </>
-          ) : null}
 
-          <Button type="submit" className="w-full" disabled={mut.isPending}>
-            {mut.isPending ? "Đang lưu..." : "Ghi sổ"}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label>Mã</Label>
+                  <Input value={symbol} onChange={(e) => setSymbol(e.target.value)} placeholder={kind === "CRYPTO" ? "BTC" : "MBB"} required={!isBank} />
+                </div>
+                <div className="space-y-1">
+                  <Label>Tên</Label>
+                  <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Tùy chọn" />
+                </div>
+              </div>
+
+              {txType === "CASH_DIVIDEND" && (
+                <div className="space-y-1">
+                  <Label>Tổng tiền thực nhận (VND)</Label>
+                  <Input value={divTotal} onChange={(e) => setDivTotal(e.target.value)} placeholder="1,000,000" />
+                </div>
+              )}
+
+              {txType === "STOCK_DIVIDEND" && (
+                <div className="space-y-1">
+                  <Label>Số lượng CP thưởng thực nhận</Label>
+                  <Input value={stockDivQty} onChange={(e) => setStockDivQty(e.target.value)} />
+                  <p className="text-xs text-muted-foreground">Tăng holdings, pha loãng giá vốn trung bình.</p>
+                </div>
+              )}
+
+              {txType === "BUY" || txType === "SELL" ? (
+                <>
+                  {isDcdsBuy || isCryptoBuy ? (
+                    <>
+                      <div className="space-y-1">
+                        <Label>{isCryptoBuy ? "Số tiền mua (USD)" : "Số tiền mua (VND)"}</Label>
+                        <Input
+                          value={amount}
+                          onChange={(e) => setAmount(e.target.value)}
+                          placeholder={isCryptoBuy ? "1000" : "10000000"}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>{isCryptoBuy ? "Giá (USD)" : "Giá CCQ (VND)"}</Label>
+                        <Input
+                          value={price}
+                          onChange={(e) => setPrice(e.target.value)}
+                          placeholder={isCryptoBuy ? "65000" : "15000"}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>{isCryptoBuy ? "Khối lượng (tự tính)" : "Số CCQ (tự tính, 4 số thập phân)"}</Label>
+                        <Input
+                          readOnly
+                          value={computedQty ? formatQty(computedQty, isCryptoBuy ? "CRYPTO" : "DCDS") : ""}
+                          className="bg-muted"
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label>Khối lượng</Label>
+                        <Input value={qty} onChange={(e) => setQty(e.target.value)} placeholder="1000" required />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Giá {kind === "CRYPTO" ? "(USD)" : kind === "DCDS" ? "(VND)" : "(13.5 = 13.500 ₫)"}</Label>
+                        <Input value={price} onChange={(e) => setPrice(e.target.value)} placeholder={kind === "CRYPTO" ? "65000" : "13.5"} required />
+                      </div>
+                    </div>
+                  )}
+
+                  {kind === "CRYPTO" && (
+                    <div className="space-y-1">
+                      <Label>Tỷ giá USD/VND khóa theo lệnh</Label>
+                      <Input value={fx} onChange={(e) => setFx(e.target.value)} />
+                    </div>
+                  )}
+
+                  {canTplus && (
+                    <label className="flex items-center gap-2 text-sm">
+                      <Checkbox checked={tplus} onCheckedChange={(v) => setTplus(v === true)} />
+                      Trade T+ — lệnh này vào phân tích T+, không cộng vào giá vốn gốc
+                    </label>
+                  )}
+
+                  {canMatch && (
+                    <div className="space-y-2 rounded-lg border border-border p-3">
+                      <p className="text-sm font-medium">Khớp T+ thủ công</p>
+                      <p className="text-xs text-muted-foreground">Chọn lệnh BUY T+ đang OPEN để khớp. Phần không khớp trừ vị thế gốc.</p>
+                      {openLots.map((l) => (
+                        <div key={l.buyTxId} className="flex items-center gap-2 text-sm">
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate">
+                              {formatViDate(l.buyDate)} · {l.qtyRemaining}/{l.qtyOriginal} @ {displayPrice(l.buyPrice, assetType, currency, usdVnd)}
+                            </p>
+                          </div>
+                          <Input
+                            className="w-24"
+                            value={matchQty[l.buyTxId] ?? ""}
+                            onChange={(e) => setMatchQty((m) => ({ ...m, [l.buyTxId]: e.target.value }))}
+                            placeholder="0"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="space-y-1">
+                      <Label>Phí (mặc định {defaultFeePct}%)</Label>
+                      <Input value={feeOverride} onChange={(e) => setFeeOverride(e.target.value)} placeholder={String(Math.round(autoFee * 100) / 100)} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Thuế (mặc định {defaultTaxPct}%)</Label>
+                      <Input value={taxOverride} onChange={(e) => setTaxOverride(e.target.value)} placeholder={String(Math.round(autoTax * 100) / 100)} />
+                    </div>
+                  </div>
+                </>
+              ) : null}
+            </>
+          )}
+
+          <Button type="submit" className="w-full" disabled={saving}>
+            {saving ? "Đang lưu..." : isBank ? "Lưu sổ" : "Ghi sổ"}
           </Button>
         </form>
       </DialogContent>
