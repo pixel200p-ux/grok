@@ -2,7 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { getSql } from "@/lib/db";
-import { replayPortfolio } from "@/engine/replay";
+import { replayOriginalByBucket, replayPortfolio } from "@/engine/replay";
+import { formatVnd } from "@/engine/money";
 import { replayBank } from "@/engine/bank";
 import { todayYmd } from "@/engine/dates";
 import type { LedgerSnapshot, PortfolioState } from "@/engine/types";
@@ -62,17 +63,28 @@ const capitalSchema = z.object({
   amount: z.number().positive(),
   movementDate: z.string(),
   notes: z.string().optional(),
+  bucket: z.enum(["DCDS", "ETF", "VPS", "SSI", "CRYPTO", "BANK"]),
 });
 
 export const saveCapital = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(capitalSchema)
-  .handler(async ({ data }) => {
+    .handler(async ({ data }) => {
     const sql = await getSql();
     const id = crypto.randomUUID();
+    let notes = data.notes?.trim() ? data.notes.trim() : null;
+    if (data.kind === "WITHDRAW") {
+      const current = await loadSnapshot();
+      const originalBefore = replayOriginalByBucket(current.capital)[data.bucket] ?? 0;
+      const excess = data.amount - originalBefore;
+      if (excess > 0) {
+        const core = `đã chốt lãi ${formatVnd(excess)}`;
+        notes = notes ? `${core} · ${notes}` : core;
+      }
+    }
     await sql`
-      insert into capital_movements (id, kind, amount, movement_date, notes)
-      values (${id}, ${data.kind}, ${data.amount}, ${data.movementDate}, ${data.notes ?? null})
+      insert into capital_movements (id, kind, amount, movement_date, notes, bucket)
+      values (${id}, ${data.kind}, ${data.amount}, ${data.movementDate}, ${notes}, ${data.bucket})
     `;
     const ledger = await loadSnapshot();
     return { ledger, state: replayPortfolio(ledger) };

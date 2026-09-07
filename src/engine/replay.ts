@@ -3,6 +3,8 @@ import { todayYmd } from "./dates";
 import { num, roundTo4 } from "./money";
 import type {
   Asset,
+  CapitalBucket,
+  CapitalMovement,
   FeeSetting,
   HoldingView,
   LedgerSnapshot,
@@ -12,6 +14,7 @@ import type {
   TplusCycleRecord,
   Transaction,
 } from "./types";
+import { CAPITAL_BUCKETS } from "./types";
 
 interface Pos {
   asset: Asset;
@@ -110,15 +113,36 @@ function applyCoreSell(p: Pos, qty: number, netProceeds: number) {
   p.tplusReduction -= p.tplusReduction * frac;
   p.coreQty -= sellQty;
 }
+export function emptyBuckets(): Record<CapitalBucket, number> {
+  return { DCDS: 0, ETF: 0, VPS: 0, SSI: 0, CRYPTO: 0, BANK: 0 };
+}
 
+/** Original từng ô: nạp cộng, rút trừ, không âm. Original Capital = tổng 6 ô. */
+export function replayOriginalByBucket(capital: CapitalMovement[]): Record<CapitalBucket, number> {
+  const o = emptyBuckets();
+  const rows = capital
+    .filter((c) => !c.deletedAt)
+    .slice()
+    .sort(
+      (a, b) =>
+        a.movementDate.localeCompare(b.movementDate) ||
+        a.createdAt.localeCompare(b.createdAt) ||
+        a.id.localeCompare(b.id),
+    );
+  for (const c of rows) {
+    if (!(c.bucket in o)) continue;
+    if (c.kind === "DEPOSIT") o[c.bucket] += c.amount;
+    else o[c.bucket] = Math.max(0, o[c.bucket] - c.amount);
+  }
+  return o;
+}
 /**
  * Shared Calculation Engine. UI must never compute P&L / holdings itself.
  * Replay is deterministic from the ledger (soft-deleted rows excluded).
  */
 export function replayPortfolio(ledger: LedgerSnapshot, asOf = todayYmd()): PortfolioState {
-  const originalCapital = ledger.capital
-    .filter((c) => !c.deletedAt)
-    .reduce((s, c) => s + (c.kind === "DEPOSIT" ? c.amount : -c.amount), 0);
+    const originalByBucket = replayOriginalByBucket(ledger.capital);
+  const originalCapital = CAPITAL_BUCKETS.reduce((s, b) => s + originalByBucket[b], 0);
 
   const assets = new Map(ledger.assets.map((a) => [a.id, a]));
   const positions = new Map<string, Pos>();
@@ -362,7 +386,19 @@ export function replayPortfolio(ledger: LedgerSnapshot, asOf = todayYmd()): Port
   const cashDividend = holdings.reduce((s, h) => s + h.cashDividend, 0);
   const stockDividendQty = holdings.reduce((s, h) => s + h.stockDividendQty, 0);
   const tplusProfit = holdings.reduce((s, h) => s + h.tplusProfitCompleted, 0);
-  const totalPnl = realizedTradePnl + unrealizedPnl + cashDividend + bankInterest;
+    const navByBucket = emptyBuckets();
+  navByBucket.DCDS = cat.DCDS;
+  navByBucket.ETF = cat.ETF;
+  navByBucket.CRYPTO = cat.CRYPTO;
+  navByBucket.BANK = cat.BANK;
+  navByBucket.VPS = holdings.filter((h) => h.accountId === "vps").reduce((s, h) => s + h.marketValue, 0);
+  navByBucket.SSI = holdings.filter((h) => h.accountId === "ssi").reduce((s, h) => s + h.marketValue, 0);
+  const tplusByBucket = {
+    VPS: holdings.filter((h) => h.accountId === "vps").reduce((s, h) => s + h.tplusProfitCompleted, 0),
+    SSI: holdings.filter((h) => h.accountId === "ssi").reduce((s, h) => s + h.tplusProfitCompleted, 0),
+    CRYPTO: holdings.filter((h) => h.assetType === "CRYPTO").reduce((s, h) => s + h.tplusProfitCompleted, 0),
+  };
+  const totalPnl = nav - originalCapital;
   const totalReturnPct = originalCapital > 0 ? (totalPnl / originalCapital) * 100 : 0;
 
   holdings.sort((a, b) => {
@@ -377,8 +413,11 @@ export function replayPortfolio(ledger: LedgerSnapshot, asOf = todayYmd()): Port
 
   return {
     asOf,
-    originalCapital,
+  originalCapital,
+    originalByBucket,
     nav,
+    navByBucket,
+    tplusByBucket,
     totalPnl,
     totalReturnPct,
     realizedTradePnl,

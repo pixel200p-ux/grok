@@ -62,7 +62,7 @@ export function TplusPage() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Trade T+</h1>
+          <h1 className="text-4xl font-semibold">Trade T+</h1>
           <p className="text-sm text-muted-foreground">
             Chỉ hiện mã đang có lệnh T+ OPEN. Khớp bán chọn tay. Lãi COMPLETED mới hạ giá vốn gốc.
           </p>

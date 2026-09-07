@@ -133,7 +133,14 @@ export function NavCapitalChart({
           />
                     <Tooltip
             cursor={{ stroke: "var(--app-border)", strokeDasharray: "4 4" }}
-            content={(props) => <ChartTip {...props} usdVnd={usdVnd} />}
+                        content={({ active, payload, label }) => (
+              <ChartTip
+                active={active}
+                payload={payload as { dataKey?: string; value?: number }[] | undefined}
+                label={String(label ?? "")}
+                usdVnd={usdVnd}
+              />
+            )}
           />
           <Legend
             verticalAlign="top"

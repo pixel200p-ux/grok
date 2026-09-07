@@ -2,6 +2,8 @@ export type AccountKind = "STOCK_VPS" | "STOCK_SSI" | "CRYPTO" | "ETF" | "DCDS" 
 export type AssetType = "STOCK" | "ETF" | "DCDS" | "CRYPTO";
 export type TxType = "BUY" | "SELL" | "CASH_DIVIDEND" | "STOCK_DIVIDEND";
 export type CapitalKind = "DEPOSIT" | "WITHDRAW";
+export const CAPITAL_BUCKETS = ["DCDS", "ETF", "VPS", "SSI", "CRYPTO", "BANK"] as const;
+export type CapitalBucket = (typeof CAPITAL_BUCKETS)[number];
 export type BankStatus = "ACTIVE" | "REDEEMED";
 export type FeeProfile = "STOCK_VPS" | "STOCK_SSI" | "CRYPTO" | "DCDS" | "ETF";
 
@@ -28,6 +30,7 @@ export interface CapitalMovement {
   kind: CapitalKind;
   amount: number;
   movementDate: string;
+  bucket: CapitalBucket;
   notes: string | null;
   deletedAt: string | null;
   createdAt: string;
@@ -207,8 +210,11 @@ export interface TplusCard {
 
 export interface PortfolioState {
   asOf: string;
-  originalCapital: number;
+    originalCapital: number;
+  originalByBucket: Record<CapitalBucket, number>;
   nav: number;
+  navByBucket: Record<CapitalBucket, number>;
+  tplusByBucket: { VPS: number; SSI: number; CRYPTO: number };
   totalPnl: number;
   totalReturnPct: number;
   realizedTradePnl: number;

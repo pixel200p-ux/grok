@@ -38,7 +38,7 @@ export function SettingsPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-xl font-semibold">Settings</h1>
+        <h1 className="text-4xl font-semibold">Settings</h1>
         <p className="text-sm text-muted-foreground">Phí / thuế mặc định chỉ sửa tại đây. Form giao dịch tự nạp tỷ lệ này.</p>
       </div>
 

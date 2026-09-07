@@ -33,13 +33,17 @@ import { CapitalDialog } from "@/components/forms/CapitalDialog";
 import { BankDialog } from "@/components/forms/BankDialog";
 import { cn } from "@/lib/utils";
 
-const NAV = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard },
+const NAV_HOME = [{ to: "/", label: "Dashboard", icon: LayoutDashboard }] as const;
+
+const NAV_ASSETS = [
   { to: "/dcds", label: "DCDS", icon: Landmark },
   { to: "/etf", label: "ETF", icon: PieChart },
   { to: "/stock", label: "Stock", icon: CandlestickChart },
   { to: "/crypto", label: "Crypto", icon: Coins },
   { to: "/bank", label: "Bank", icon: Building2 },
+] as const;
+
+const NAV_TOOLS = [
   { to: "/tplus", label: "Trade T+", icon: BarChart3 },
   { to: "/reports", label: "Reports", icon: Wallet },
   { to: "/settings", label: "Settings", icon: Settings },
@@ -77,28 +81,40 @@ export function AppShell() {
     }
   }
 
+    function renderItems(items: typeof NAV_HOME | typeof NAV_ASSETS | typeof NAV_TOOLS) {
+    return items.map((item) => {
+      const active = item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
+      const Icon = item.icon;
+      return (
+        <Link
+          key={item.to}
+          to={item.to}
+          onClick={() => setMobile(false)}
+          className={cn(
+            "flex min-h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors",
+            active
+              ? "bg-white/12 text-white"
+              : "text-sidebar-foreground/75 hover:bg-white/8 hover:text-white",
+          )}
+        >
+          <Icon className="h-4 w-4 shrink-0" />
+          {item.label}
+        </Link>
+      );
+    });
+  }
+
   const nav = (
-    <nav className="flex flex-1 flex-col gap-0.5 p-3">
-      {NAV.map((item) => {
-        const active = item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
-        const Icon = item.icon;
-        return (
-          <Link
-            key={item.to}
-            to={item.to}
-            onClick={() => setMobile(false)}
-            className={cn(
-              "flex min-h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors",
-              active
-                ? "bg-white/12 text-white"
-                : "text-sidebar-foreground/75 hover:bg-white/8 hover:text-white",
-            )}
-          >
-            <Icon className="h-4 w-4 shrink-0" />
-            {item.label}
-          </Link>
-        );
-      })}
+    <nav className="flex flex-1 flex-col gap-1 p-3">
+      {renderItems(NAV_HOME)}
+
+      <div className="my-1 rounded-xl bg-white/[0.06] p-1 ring-1 ring-inset ring-white/10">
+        {renderItems(NAV_ASSETS)}
+      </div>
+
+      <div className="mx-3 my-1.5 h-px bg-white/10" aria-hidden />
+
+      {renderItems(NAV_TOOLS)}
     </nav>
   );
 

@@ -11,6 +11,7 @@ import { usePortfolio, usePortfolioMutation } from "@/lib/use-portfolio";
 import { useUiStore } from "@/lib/ui-store";
 import type { AssetType } from "@/engine/types";
 import { Skeleton } from "@/components/ui/skeleton";
+import { NavOriginalCard, PnlCard, TplusLoweredCard } from "@/components/NavOriginalCards";
 
 const TITLE: Record<AssetType, { title: string; sub: string }> = {
   DCDS: { title: "DCDS", sub: "Quỹ mở · số CCQ = tiền / giá, làm tròn 4 số" },
@@ -30,7 +31,81 @@ export function AssetPage({ assetType }: { assetType: AssetType }) {
   if (isPending || !data) return <Skeleton className="h-64" />;
   const { state, ledger } = data;
   const usd = state.usdVnd;
-  const meta = TITLE[assetType];
+    const meta = TITLE[assetType];
+    const ob = state.originalByBucket;
+  const nb = state.navByBucket;
+  const tb = state.tplusByBucket;
+  let sliceNav = 0;
+  let sliceOriginal = 0;
+  let sliceName = meta.title;
+  const tplusSlice: { key: string; title: string; amount: number; hint: string }[] = [];
+
+  if (assetType === "DCDS") {
+    sliceNav = nb.DCDS;
+    sliceOriginal = ob.DCDS;
+    sliceName = "DCDS";
+  } else if (assetType === "ETF") {
+    sliceNav = nb.ETF;
+    sliceOriginal = ob.ETF;
+    sliceName = "ETF";
+  } else if (assetType === "CRYPTO") {
+    sliceNav = nb.CRYPTO;
+    sliceOriginal = ob.CRYPTO;
+    sliceName = "Crypto";
+    tplusSlice.push({
+      key: "crypto",
+      title: "T+ đã hạ vốn",
+      amount: tb.CRYPTO,
+      hint: "Crypto · lợi nhuận T+ ròng đã COMPLETED",
+    });
+  } else if (assetType === "STOCK") {
+    if (stockFilter === "vps") {
+      sliceNav = nb.VPS;
+      sliceOriginal = ob.VPS;
+      sliceName = "VPS";
+      tplusSlice.push({
+        key: "vps",
+        title: "T+ đã hạ vốn",
+        amount: tb.VPS,
+        hint: "VPS · lợi nhuận T+ ròng đã COMPLETED",
+      });
+    } else if (stockFilter === "ssi") {
+      sliceNav = nb.SSI;
+      sliceOriginal = ob.SSI;
+      sliceName = "SSI";
+      tplusSlice.push({
+        key: "ssi",
+        title: "T+ đã hạ vốn",
+        amount: tb.SSI,
+        hint: "SSI · lợi nhuận T+ ròng đã COMPLETED",
+      });
+    } else {
+      sliceNav = nb.VPS + nb.SSI;
+      sliceOriginal = ob.VPS + ob.SSI;
+      sliceName = "Stock";
+      tplusSlice.push(
+        {
+          key: "vps",
+          title: "T+ đã hạ vốn · VPS",
+          amount: tb.VPS,
+          hint: "VPS · lợi nhuận T+ ròng đã COMPLETED",
+        },
+        {
+          key: "ssi",
+          title: "T+ đã hạ vốn · SSI",
+          amount: tb.SSI,
+          hint: "SSI · lợi nhuận T+ ròng đã COMPLETED",
+        },
+      );
+    }
+  }
+
+  const kpiGrid =
+    assetType === "STOCK" && stockFilter === "ALL"
+      ? "grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4 md:items-stretch"
+      : tplusSlice.length > 0
+        ? "grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)_minmax(0,1fr)] md:items-stretch"
+        : "grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] md:items-stretch";
 
   let holdings = state.holdings.filter((h) => h.assetType === assetType);
   if (assetType === "STOCK" && stockFilter !== "ALL") holdings = holdings.filter((h) => h.accountId === stockFilter);
@@ -66,7 +141,7 @@ export function AssetPage({ assetType }: { assetType: AssetType }) {
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">{meta.title}</h1>
+          <h1 className="text-4xl font-semibold">{meta.title}</h1>
           <p className="text-sm text-muted-foreground">{meta.sub}</p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -88,7 +163,24 @@ export function AssetPage({ assetType }: { assetType: AssetType }) {
           </Button>
         </div>
       </div>
-
+      <div className={kpiGrid}>
+        <NavOriginalCard
+          title={`NAV / Original ${sliceName}`}
+          originalLabel={`Original ${sliceName}`}
+          nav={sliceNav}
+          original={sliceOriginal}
+          usdVnd={usd}
+        />
+        <PnlCard
+          pnl={sliceNav - sliceOriginal}
+          original={sliceOriginal}
+          subtitle={`NAV − Original ${sliceName}`}
+          usdVnd={usd}
+        />
+        {tplusSlice.map((c) => (
+          <TplusLoweredCard key={c.key} title={c.title} amount={c.amount} hint={c.hint} usdVnd={usd} />
+        ))}
+      </div>
                   {assetType === "STOCK" && (
         <div className="grid gap-4 md:grid-cols-10">
           <Card className={stockFilter === "ssi" ? "md:col-span-3" : stockFilter === "vps" ? "md:col-span-7" : "md:col-span-5"}>

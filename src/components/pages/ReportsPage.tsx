@@ -31,16 +31,16 @@ export function ReportsPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-xl font-semibold">Reports</h1>
+        <h1 className="text-4xl font-semibold">Reports</h1>
         <p className="text-sm text-muted-foreground">Mọi số liệu đi qua Replay Engine.</p>
       </div>
       <div className="grid gap-3 sm:grid-cols-3">
         <Kpi label="Original Capital" value={displayMoney(s.originalCapital, currency, usd)} />
         <Kpi label="NAV" value={displayMoney(s.nav, currency, usd)} />
-        <Kpi
+                <Kpi
           label="Hiệu suất"
-          value={formatPct(s.totalReturnPct)}
-          hint={displayMoney(s.totalPnl, currency, usd)}
+          value={s.originalCapital > 0 ? formatPct(s.totalReturnPct) : displayMoney(s.totalPnl, currency, usd)}
+          hint={s.originalCapital > 0 ? displayMoney(s.totalPnl, currency, usd) : "Original Capital = 0 · toàn bộ NAV là lãi/lỗ"}
           tone={s.totalPnl > 0 ? "profit" : s.totalPnl < 0 ? "loss" : "default"}
         />
       </div>
@@ -48,7 +48,7 @@ export function ReportsPage() {
         <Card>
           <CardTitle>Phân bổ NAV</CardTitle>
           <div className="mt-3">
-            <AllocChart data={alloc} />
+            <AllocChart data={alloc} usdVnd={usd} />
           </div>
         </Card>
         <Card>

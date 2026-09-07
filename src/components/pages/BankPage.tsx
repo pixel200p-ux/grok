@@ -9,6 +9,7 @@ import { usePortfolio, usePortfolioMutation } from "@/lib/use-portfolio";
 import { useUiStore } from "@/lib/ui-store";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState } from "react";
+import { NavOriginalCard, PnlCard } from "@/components/NavOriginalCards";
 
 export function BankPage() {
   const { data, isPending } = usePortfolio();
@@ -26,12 +27,26 @@ export function BankPage() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Bank</h1>
+          <h1 className="text-4xl font-semibold">Bank</h1>
           <p className="text-sm text-muted-foreground">Nhiều sổ, nhiều ngân hàng. Gần đáo hạn lên trên.</p>
         </div>
         <Button onClick={openBank}>Mở sổ</Button>
       </div>
-
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] md:items-stretch">
+        <NavOriginalCard
+          title="NAV / Original Bank"
+          originalLabel="Original Bank"
+          nav={data.state.navByBucket.BANK}
+          original={data.state.originalByBucket.BANK}
+          usdVnd={usd}
+        />
+        <PnlCard
+          pnl={data.state.navByBucket.BANK - data.state.originalByBucket.BANK}
+          original={data.state.originalByBucket.BANK}
+          subtitle="NAV − Original Bank"
+          usdVnd={usd}
+        />
+      </div>
       <div className="grid gap-3 sm:grid-cols-2">
         {data.state.banks.map((b) => (
           <Card key={b.id} className="space-y-3">
