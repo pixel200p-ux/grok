@@ -9,7 +9,7 @@ import { useUiStore } from "@/lib/ui-store";
 import { usePortfolio, usePortfolioMutation } from "@/lib/use-portfolio";
 import { saveBank, saveTransaction } from "@/lib/api/portfolio";
 import { dcdsQty } from "@/engine/replay";
-import { parseBrokerPrice, parseDecimal, parseVndAmount, formatQty } from "@/engine/money";
+import { parseBrokerPrice, parseDecimal, parseVndAmount, formatQty, formatBrokerPrice } from "@/engine/money";
 import { todayYmd, formatViDate } from "@/engine/dates";
 import { displayPrice } from "@/lib/display";
 import type { AssetType, FeeProfile, TxType } from "@/engine/types";
@@ -71,6 +71,8 @@ export function TxDialog() {
   const [bankRate, setBankRate] = useState("5.5");
   const [bankRollover, setBankRollover] = useState(true);
 
+    const editing = Boolean(prefill?.id);
+
   useEffect(() => {
     if (!prefill) return;
     setKind(prefill.assetType ?? "STOCK");
@@ -79,17 +81,38 @@ export function TxDialog() {
     setSymbol(prefill.symbol ?? "");
     setName(prefill.name ?? "");
     setTplus(prefill.tradeTplus ?? false);
-    setDate(todayYmd());
-    setQty("");
-    setPrice(prefill.price != null ? String(prefill.assetType === "CRYPTO" ? prefill.price : prefill.price / 1000) : "");
-    setAmount("");
-    setDivTotal("");
-    setStockDivQty("");
-    setFeeOverride("");
-    setTaxOverride("");
-    setMatchQty({});
-    setFx(data?.state.usdVnd ? String(data.state.usdVnd) : "25000");
+    setDate(prefill.txDate ?? todayYmd());
+    setFx(prefill.fxRate != null ? String(prefill.fxRate) : data?.state.usdVnd ? String(data.state.usdVnd) : "25000");
+    setFeeOverride(prefill.id && prefill.fee != null ? String(prefill.fee) : "");
+    setTaxOverride(prefill.id && prefill.tax != null ? String(prefill.tax) : "");
+    setDivTotal(prefill.txType === "CASH_DIVIDEND" && prefill.amount != null ? String(prefill.amount) : "");
+    setStockDivQty(prefill.stockDivQty != null ? String(prefill.stockDivQty) : "");
     setBankPrincipal("");
+
+    const at = prefill.assetType ?? "STOCK";
+    if (prefill.id && (prefill.txType === "BUY" || prefill.txType === "SELL")) {
+      if (at === "DCDS" || at === "CRYPTO") {
+        setAmount(prefill.amount != null ? String(prefill.amount) : "");
+        setPrice(prefill.price != null ? String(prefill.price) : "");
+        setQty(prefill.quantity != null ? String(prefill.quantity) : "");
+      } else {
+        setAmount("");
+        setQty(prefill.quantity != null ? String(prefill.quantity) : "");
+        setPrice(prefill.price != null ? formatBrokerPrice(prefill.price) : "");
+      }
+    } else {
+      setQty(prefill.quantity != null ? String(prefill.quantity) : "");
+      setPrice(
+        prefill.price != null
+          ? String(at === "CRYPTO" || at === "DCDS" ? prefill.price : prefill.price / 1000)
+          : "",
+      );
+      setAmount("");
+    }
+
+    const next: Record<string, string> = {};
+    for (const m of prefill.matches ?? []) next[m.buyTxId] = String(m.quantity);
+    setMatchQty(next);
   }, [prefill, data?.state.usdVnd]);
 
   const isBank = kind === "BANK";
@@ -136,7 +159,10 @@ export function TxDialog() {
   }, [prefill?.matchAllOpen, openLots.length]);
 
   const canTplus = (kind === "STOCK" || kind === "CRYPTO") && txType === "BUY";
-  const canMatch = (kind === "STOCK" || kind === "CRYPTO") && txType === "SELL" && openLots.length > 0;
+    const canMatch =
+    (kind === "STOCK" || kind === "CRYPTO") &&
+    txType === "SELL" &&
+    (openLots.length > 0 || (editing && (prefill?.matches?.length ?? 0) > 0));
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -175,6 +201,7 @@ export function TxDialog() {
     mut.mutate(
       {
         data: {
+          id: prefill?.id,
           accountId: acc.id,
           symbol: sym,
           name: name || sym,
@@ -216,8 +243,9 @@ export function TxDialog() {
 
   return (
     <Dialog open={!!prefill} onOpenChange={(o) => !o && close()}>
-      <DialogContent title="Giao dịch" className="max-w-xl">
+        <DialogContent title={editing ? "Sửa giao dịch" : "Giao dịch"} className="max-w-xl">
         <form className="space-y-3" onSubmit={submit}>
+                    {!editing && (
           <div className="flex flex-wrap gap-1">
             {TYPES.map((t) => (
               <button
@@ -232,8 +260,9 @@ export function TxDialog() {
               >
                 {t.label}
               </button>
-            ))}
+                        ))}
           </div>
+          )}
 
           {isBank ? (
             <>
@@ -431,7 +460,7 @@ export function TxDialog() {
           )}
 
           <Button type="submit" className="w-full" disabled={saving}>
-            {saving ? "Đang lưu..." : isBank ? "Lưu sổ" : "Ghi sổ"}
+          {saving ? "Đang lưu..." : editing ? "Lưu sửa" : isBank ? "Lưu sổ" : "Ghi sổ"}
           </Button>
         </form>
       </DialogContent>

@@ -103,7 +103,10 @@ export function BankPage() {
                 </Button>
               </form>
             )}
-            <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="outline" onClick={() => openBank(b.id)}>
+                Sửa
+              </Button>
               <Button size="sm" variant="outline" onClick={() => redeemMut.mutate({ data: { id: b.id } })}>
                 Tất toán
               </Button>

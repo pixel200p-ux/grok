@@ -6,6 +6,7 @@ export type ThemeMode = "light" | "dark";
 export type DisplayCurrency = "VND" | "USD";
 
 export type TxPrefill = {
+  id?: string;
   accountId?: string;
   symbol?: string;
   name?: string;
@@ -13,6 +14,15 @@ export type TxPrefill = {
   txType?: TxType;
   tradeTplus?: boolean;
   price?: number;
+  txDate?: string;
+  quantity?: number | null;
+  amount?: number;
+  fee?: number;
+  tax?: number;
+  fxRate?: number | null;
+  stockDivQty?: number | null;
+  notes?: string | null;
+  matches?: { buyTxId: string; quantity: number }[];
   matchAllOpen?: boolean;
 };
 
@@ -22,7 +32,8 @@ type UiState = {
   stockFilter: "ALL" | "vps" | "ssi";
   txOpen: TxPrefill | null;
   capitalOpen: "DEPOSIT" | "WITHDRAW" | null;
-  bankOpen: boolean;
+    bankOpen: boolean;
+  bankEditId: string | null;
   setTheme: (t: ThemeMode) => void;
   toggleTheme: () => void;
   toggleCurrency: () => void;
@@ -31,7 +42,7 @@ type UiState = {
   closeTx: () => void;
   openCapital: (k: "DEPOSIT" | "WITHDRAW") => void;
   closeCapital: () => void;
-  openBank: () => void;
+    openBank: (id?: string) => void;
   closeBank: () => void;
 };
 
@@ -44,6 +55,7 @@ export const useUiStore = create<UiState>()(
       txOpen: null,
       capitalOpen: null,
       bankOpen: false,
+      bankEditId: null,
       setTheme: (theme) => set({ theme }),
       toggleTheme: () => set({ theme: get().theme === "light" ? "dark" : "light" }),
       toggleCurrency: () => set({ currency: get().currency === "VND" ? "USD" : "VND" }),
@@ -52,8 +64,8 @@ export const useUiStore = create<UiState>()(
       closeTx: () => set({ txOpen: null }),
       openCapital: (capitalOpen) => set({ capitalOpen }),
       closeCapital: () => set({ capitalOpen: null }),
-      openBank: () => set({ bankOpen: true }),
-      closeBank: () => set({ bankOpen: false }),
+      openBank: (id) => set({ bankOpen: true, bankEditId: id ?? null }),
+      closeBank: () => set({ bankOpen: false, bankEditId: null }),
     }),
     {
       name: "pm-ui",

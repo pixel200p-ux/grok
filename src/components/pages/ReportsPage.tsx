@@ -1,70 +1,171 @@
-import { AllocChart } from "@/components/AllocChart";
-import { Card, CardTitle } from "@/components/ui/card";
 import { Kpi } from "@/components/Kpi";
-import { displayMoney } from "@/lib/display";
-import { formatPct, signedClass } from "@/engine/money";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { formatViDate } from "@/engine/dates";
+import { formatPct, formatQty, signedClass } from "@/engine/money";
+import type { CapitalBucket } from "@/engine/types";
+import { displayMoney, displayPrice } from "@/lib/display";
+import {
+  buildReportRows,
+  filterReportRows,
+  REPORT_BUCKETS,
+  REPORT_KINDS,
+  type ReportKind,
+} from "@/lib/report-history";
 import { usePortfolio } from "@/lib/use-portfolio";
 import { useUiStore } from "@/lib/ui-store";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useMemo, useState } from "react";
 
 export function ReportsPage() {
   const { data, isPending } = usePortfolio();
   const currency = useUiStore((s) => s.currency);
+  const [bucket, setBucket] = useState<"ALL" | CapitalBucket>("ALL");
+  const [kind, setKind] = useState<"ALL" | ReportKind>("ALL");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+
+  const allRows = useMemo(() => (data ? buildReportRows(data.ledger, data.state.asOf) : []), [data]);
+  const rows = useMemo(
+    () => filterReportRows(allRows, { bucket, kind, from, to }),
+    [allRows, bucket, kind, from, to],
+  );
+
   if (isPending || !data) return <Skeleton className="h-64" />;
   const s = data.state;
   const usd = s.usdVnd;
-  const alloc = ["DCDS", "ETF", "STOCK", "CRYPTO", "BANK"].map((k) => ({
-    key: k,
-    label: k === "STOCK" ? "Stock" : k === "BANK" ? "Bank" : k,
-    value: s.allocation[k]?.value ?? 0,
-    pct: s.allocation[k]?.pct ?? 0,
-  }));
 
-  const rows = [
-    { label: "P&L giao dịch (realized)", value: s.realizedTradePnl },
-    { label: "P&L chưa thực hiện", value: s.unrealizedPnl },
-    { label: "Cổ tức tiền mặt", value: s.cashDividend },
-    { label: "Lãi T+ (hạ giá vốn)", value: s.tplusProfit },
-    { label: "Lãi Bank dồn", value: s.bankInterest },
-  ];
+  const sumIn = rows.filter((r) => r.kind === "DEPOSIT").reduce((n, r) => n + r.amount, 0);
+  const sumOut = rows.filter((r) => r.kind === "WITHDRAW").reduce((n, r) => n + r.amount, 0);
 
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-4xl font-semibold">Reports</h1>
-        <p className="text-sm text-muted-foreground">Mọi số liệu đi qua Replay Engine.</p>
+        <h1 className="text-xl font-semibold">Reports</h1>
+        <p className="text-sm text-muted-foreground">Sổ lịch sử toàn danh mục · chỉ xem, không sửa/xóa</p>
       </div>
+
       <div className="grid gap-3 sm:grid-cols-3">
         <Kpi label="Original Capital" value={displayMoney(s.originalCapital, currency, usd)} />
         <Kpi label="NAV" value={displayMoney(s.nav, currency, usd)} />
-                <Kpi
+        <Kpi
           label="Hiệu suất"
           value={s.originalCapital > 0 ? formatPct(s.totalReturnPct) : displayMoney(s.totalPnl, currency, usd)}
           hint={s.originalCapital > 0 ? displayMoney(s.totalPnl, currency, usd) : "Original Capital = 0 · toàn bộ NAV là lãi/lỗ"}
           tone={s.totalPnl > 0 ? "profit" : s.totalPnl < 0 ? "loss" : "default"}
         />
       </div>
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardTitle>Phân bổ NAV</CardTitle>
-          <div className="mt-3">
-            <AllocChart data={alloc} usdVnd={usd} />
+
+      <Card>
+        <CardTitle>Lịch sử</CardTitle>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="space-y-1">
+            <Label>Danh mục</Label>
+            <Select
+              value={bucket}
+              onValueChange={(v) => setBucket(v as "ALL" | CapitalBucket)}
+              options={REPORT_BUCKETS}
+            />
           </div>
-        </Card>
-        <Card>
-          <CardTitle>Cơ cấu P&L</CardTitle>
-          <ul className="mt-3 space-y-2 text-sm">
-            {rows.map((r) => (
-              <li key={r.label} className="flex justify-between gap-2">
-                <span>{r.label}</span>
-                <span className={`font-mono tabular-nums ${signedClass(r.value)}`}>
-                  {displayMoney(r.value, currency, usd)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      </div>
+          <div className="space-y-1">
+            <Label>Loại</Label>
+            <Select
+              value={kind}
+              onValueChange={(v) => setKind(v as "ALL" | ReportKind)}
+              options={REPORT_KINDS}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label>Từ ngày</Label>
+            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+          </div>
+          <div className="space-y-1">
+            <Label>Đến ngày</Label>
+            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+          </div>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs text-muted-foreground">
+            {rows.length} dòng
+            {sumIn !== 0 || sumOut !== 0
+              ? ` · Nạp ${displayMoney(sumIn, currency, usd)} · Rút ${displayMoney(sumOut, currency, usd)}`
+              : ""}
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setBucket("ALL");
+              setKind("ALL");
+              setFrom("");
+              setTo("");
+            }}
+          >
+            Xóa bộ lọc
+          </Button>
+        </div>
+
+        <div className="table-scroll mt-3">
+          <table className="w-full text-left text-sm">
+            <thead className="text-xs uppercase text-muted-foreground">
+              <tr className="border-b border-border">
+                <th className="px-2 py-2">Ngày</th>
+                <th className="px-2 py-2">Danh mục</th>
+                <th className="px-2 py-2">Mã</th>
+                <th className="px-2 py-2">Loại</th>
+                <th className="px-2 py-2 text-right">SL</th>
+                <th className="px-2 py-2 text-right">Giá</th>
+                <th className="px-2 py-2 text-right">Số tiền</th>
+                <th className="px-2 py-2">Ghi chú</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.id} className="border-b border-border/70">
+                  <td className="whitespace-nowrap px-2 py-2">{formatViDate(r.date)}</td>
+                  <td className="px-2 py-2">{r.bucket === "CRYPTO" ? "Crypto" : r.bucket}</td>
+                  <td className="px-2 py-2 font-medium">
+                    {r.symbol}
+                    {(r.kind === "BUY_TPLUS" || r.kind === "SELL_TPLUS") && (
+                      <Badge tone="navy" className="ml-1">
+                        T+
+                      </Badge>
+                    )}
+                  </td>
+                  <td className="px-2 py-2">{r.kindLabel}</td>
+                  <td className="px-2 py-2 text-right font-mono tabular-nums">
+                    {r.quantity != null ? formatQty(r.quantity, r.assetType === "ORIGINAL" ? "STOCK" : r.assetType) : "—"}
+                  </td>
+                  <td className="px-2 py-2 text-right font-mono tabular-nums">
+                    {r.price != null && r.assetType !== "ORIGINAL" && r.assetType !== "BANK"
+                      ? displayPrice(r.price, r.assetType, currency, usd)
+                      : "—"}
+                  </td>
+                  <td className={`px-2 py-2 text-right font-mono tabular-nums ${signedClass(r.amount)}`}>
+                    {r.amount !== 0 ? displayMoney(Math.abs(r.amount), currency, usd) : "—"}
+                    {r.amount < 0 ? "" : r.amount > 0 && (r.kind === "DEPOSIT" || r.kind === "SELL" || r.kind === "SELL_TPLUS" || r.kind === "CASH_DIVIDEND") ? "" : ""}
+                  </td>
+                  <td className="max-w-[16rem] truncate px-2 py-2 text-xs text-muted-foreground" title={r.notes ?? ""}>
+                    {r.notes ?? "—"}
+                  </td>
+                </tr>
+              ))}
+              {rows.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="px-2 py-8 text-center text-muted-foreground">
+                    Không có dòng nào khớp bộ lọc
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
     </div>
   );
 }

@@ -9,7 +9,7 @@ import { formatQty } from "@/engine/money";
 import { deleteTransaction } from "@/lib/api/portfolio";
 import { usePortfolio, usePortfolioMutation } from "@/lib/use-portfolio";
 import { useUiStore } from "@/lib/ui-store";
-import type { AssetType } from "@/engine/types";
+import type { AssetType, Transaction } from "@/engine/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { NavOriginalCard, PnlCard, TplusLoweredCard } from "@/components/NavOriginalCards";
 
@@ -38,7 +38,32 @@ export function AssetPage({ assetType }: { assetType: AssetType }) {
   let sliceNav = 0;
   let sliceOriginal = 0;
   let sliceName = meta.title;
-  const tplusSlice: { key: string; title: string; amount: number; hint: string }[] = [];
+    const tplusSlice: { key: string; title: string; amount: number; hint: string }[] = [];
+
+  function editTx(t: Transaction) {
+    const a = ledger.assets.find((x) => x.id === t.assetId);
+    openTx({
+      id: t.id,
+      accountId: t.accountId,
+      symbol: a?.symbol,
+      name: a?.name,
+      assetType: a?.assetType ?? assetType,
+      txType: t.txType,
+      tradeTplus: t.tradeTplus,
+      price: t.price ?? undefined,
+      txDate: t.txDate,
+      quantity: t.quantity,
+      amount: t.amount,
+      fee: t.fee,
+      tax: t.tax,
+      fxRate: t.fxRate,
+      stockDivQty: t.stockDivQty,
+      notes: t.notes,
+      matches: ledger.matches
+        .filter((m) => m.sellTxId === t.id)
+        .map((m) => ({ buyTxId: m.buyTxId, quantity: m.quantity })),
+    });
+  }
 
   if (assetType === "DCDS") {
     sliceNav = nb.DCDS;
@@ -265,10 +290,15 @@ export function AssetPage({ assetType }: { assetType: AssetType }) {
                         {t.price != null ? displayPrice(t.price, assetType, currency, usd) : displayMoney(t.amount, currency, usd)}
                       </td>
                       <td className="px-2 py-2 text-right">
-                        <Button size="sm" variant="ghost" onClick={() => del.mutate({ data: { id: t.id } })}>
-                          Xóa
-                        </Button>
-                      </td>
+              <div className="flex justify-end gap-1">
+                <Button size="sm" variant="outline" onClick={() => editTx(t)}>
+                  Sửa
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => del.mutate({ data: { id: t.id } })}>
+                  Xóa
+                </Button>
+              </div>
+            </td>
                     </tr>
                   );
                 })}

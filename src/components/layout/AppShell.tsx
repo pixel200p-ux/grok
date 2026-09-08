@@ -16,7 +16,7 @@ import {
   Wallet,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { RedirectToSignIn } from "@/lib/auth/gates";
 import { signOut } from "@/lib/auth/client";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
@@ -26,7 +26,7 @@ import { LoginScreen } from "@/components/LoginScreen";
 import { useUiStore } from "@/lib/ui-store";
 import { refreshMarketPrices } from "@/lib/api/prices";
 import { useQueryClient } from "@tanstack/react-query";
-import { PORTFOLIO_KEY } from "@/lib/use-portfolio";
+import { PORTFOLIO_KEY, usePortfolio } from "@/lib/use-portfolio";
 import { toast } from "sonner";
 import { TxDialog } from "@/components/forms/TxDialog";
 import { CapitalDialog } from "@/components/forms/CapitalDialog";
@@ -48,7 +48,23 @@ const NAV_TOOLS = [
   { to: "/reports", label: "Reports", icon: Wallet },
   { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
-
+function formatPriceAgo(iso: string | null): string {
+  if (!iso) return "Chưa cập nhật giá";
+  const then = new Date(iso).getTime();
+  if (!Number.isFinite(then)) return "Chưa cập nhật giá";
+  const ms = Date.now() - then;
+  if (ms < 60_000) return "Vừa cập nhật";
+  const minutes = Math.floor(ms / 60_000);
+  if (minutes < 60) return `Cập nhật cách đây ${minutes} phút`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `Cập nhật cách đây ${hours} tiếng`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `Cập nhật cách đây ${days} ngày`;
+  const weeks = Math.floor(days / 7);
+  if (weeks < 5) return `Cập nhật cách đây ${weeks} tuần`;
+  const months = Math.floor(days / 30);
+  return `Cập nhật cách đây ${months} tháng`;
+}
 export function AppShell() {
   const { user, isPending } = useCurrentUserState();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -58,6 +74,18 @@ export function AppShell() {
   const toggleTheme = useUiStore((s) => s.toggleTheme);
   const toggleCurrency = useUiStore((s) => s.toggleCurrency);
   const qc = useQueryClient();
+    const { data: portfolio } = usePortfolio();
+  const lastPriceAt = useMemo(() => {
+    const times = (portfolio?.ledger.assets ?? [])
+      .map((a) => a.priceUpdatedAt)
+      .filter((t): t is string => Boolean(t))
+      .map((t) => new Date(t).getTime())
+      .filter((n) => Number.isFinite(n));
+    if (times.length === 0) return null;
+    return new Date(Math.max(...times)).toISOString();
+  }, [portfolio]);
+  const stale =
+    lastPriceAt != null && Date.now() - new Date(lastPriceAt).getTime() > 24 * 60 * 60 * 1000;
   const [refreshing, setRefreshing] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
 
@@ -163,10 +191,18 @@ export function AppShell() {
             <span className="hidden text-sm font-semibold sm:inline">Portfolio Manager</span>
           </div>
           <div className="flex items-center gap-1 sm:gap-2">
-            <Button size="sm" variant="outline" onClick={onRefresh} disabled={refreshing} className="gap-1.5">
-              <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
-              <span className="hidden sm:inline">{refreshing ? "Đang cập nhật..." : "Cập nhật giá"}</span>
-            </Button>
+                <div className="mr-1 hidden min-w-0 flex-col items-end leading-tight sm:flex">
+      <span className={cn("max-w-[11rem] truncate text-[11px]", stale || !lastPriceAt ? "text-warn" : "text-muted-foreground")}>
+        {formatPriceAgo(lastPriceAt)}
+      </span>
+      {!lastPriceAt && (
+        <span className="text-[10px] text-muted-foreground">Đang dùng giá vốn</span>
+      )}
+    </div>
+    <Button size="sm" variant="outline" onClick={onRefresh} disabled={refreshing} className="gap-1.5">
+      <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
+      <span className="hidden sm:inline">{refreshing ? "Đang cập nhật..." : "Cập nhật giá"}</span>
+    </Button>
             <Button size="sm" variant="outline" onClick={toggleCurrency} title="Chuyển VND / USD">
               <span className={currency === "VND" ? "font-semibold" : "text-muted-foreground"}>VND</span>
               <span className="text-muted-foreground">/</span>

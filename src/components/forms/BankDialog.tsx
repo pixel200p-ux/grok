@@ -4,17 +4,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useUiStore } from "@/lib/ui-store";
-import { usePortfolioMutation } from "@/lib/use-portfolio";
 import { saveBank } from "@/lib/api/portfolio";
+import { usePortfolio, usePortfolioMutation } from "@/lib/use-portfolio";
 import { parseDecimal, parseVndAmount } from "@/engine/money";
 import { todayYmd } from "@/engine/dates";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const BANKS = ["VietinBank", "Vietcombank", "MB", "Techcombank", "BIDV", "Agribank", "ACB", "VPBank", "TPBank", "Khác"];
 
 export function BankDialog() {
   const open = useUiStore((s) => s.bankOpen);
+  const editId = useUiStore((s) => s.bankEditId);
   const close = useUiStore((s) => s.closeBank);
+  const { data } = usePortfolio();
   const [bankName, setBankName] = useState("VietinBank");
   const [custom, setCustom] = useState("");
   const [principal, setPrincipal] = useState("");
@@ -22,16 +24,41 @@ export function BankDialog() {
   const [term, setTerm] = useState("6");
   const [rate, setRate] = useState("5.5");
   const [rollover, setRollover] = useState(true);
+    useEffect(() => {
+    if (!open) return;
+    if (editId && data) {
+      const b = data.ledger.banks.find((x) => x.id === editId);
+      if (!b) return;
+      const known = BANKS.includes(b.bankName);
+      setBankName(known ? b.bankName : "Khác");
+      setCustom(known ? "" : b.bankName);
+      setPrincipal(String(Math.round(b.principal)));
+      setStartDate(b.startDate);
+      setTerm(String(b.termMonths));
+      setRate(String(b.interestRate));
+      setRollover(b.autoRollover);
+      return;
+    }
+    setBankName("VietinBank");
+    setCustom("");
+    setPrincipal("");
+    setStartDate(todayYmd());
+    setTerm("6");
+    setRate("5.5");
+    setRollover(true);
+  }, [open, editId, data]);
   const mut = usePortfolioMutation((d: Parameters<typeof saveBank>[0]) => saveBank(d), "Đã mở sổ tiết kiệm");
+  
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     const name = bankName === "Khác" ? custom.trim() : bankName;
     const p = parseVndAmount(principal);
     if (!name || p <= 0) return;
-    mut.mutate(
+        mut.mutate(
       {
         data: {
+          id: editId ?? undefined,
           bankName: name,
           principal: p,
           startDate,
@@ -51,7 +78,7 @@ export function BankDialog() {
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && close()}>
-      <DialogContent title="Mở sổ tiết kiệm">
+        <DialogContent title={editId ? "Sửa sổ tiết kiệm" : "Mở sổ tiết kiệm"}>
         <form className="space-y-3" onSubmit={submit}>
           <p className="text-sm text-muted-foreground">
             Mô hình thuần tài sản: mở sổ không trừ tiền mặt. NAV cộng giá trị sổ đang hiệu lực.
@@ -97,7 +124,7 @@ export function BankDialog() {
             <Switch checked={rollover} onCheckedChange={setRollover} />
           </div>
           <Button type="submit" className="w-full" disabled={mut.isPending}>
-            {mut.isPending ? "Đang lưu..." : "Lưu sổ"}
+          {mut.isPending ? "Đang lưu..." : editId ? "Lưu sửa" : "Lưu sổ"}
           </Button>
         </form>
       </DialogContent>
