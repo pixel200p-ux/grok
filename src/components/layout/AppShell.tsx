@@ -48,7 +48,7 @@ const NAV_ASSETS = [
 const NAV_TOOLS = [
   { to: "/tplus", label: "Trade T+", icon: BarChart3 },
   { to: "/reports", label: "Reports", icon: Wallet },
-  { to: "/calendar", label: "Lịch", icon: CalendarDays },
+  { to: "/calendar", label: "Calendar", icon: CalendarDays },
 ] as const;
 
 const NAV_SETTINGS = [{ to: "/settings", label: "Settings", icon: Settings }] as const;
@@ -150,8 +150,9 @@ export function AppShell() {
         {renderItems(NAV_TOOLS)}
       </div>
 
-      <div className="mt-3 border-t border-white/10 pt-2">
-        <div className="mb-1 flex items-center gap-1 px-2 py-1">
+            <div className="mt-3 border-t border-white/10 pt-2">
+        {renderItems(NAV_SETTINGS)}
+        <div className="mt-1 flex items-center gap-1 px-2 py-1">
           <span className="min-w-0 flex-1 truncate px-1 text-xs text-white/55" title={email}>
             {email}
           </span>
@@ -170,7 +171,6 @@ export function AppShell() {
             </button>
           </Tooltip>
         </div>
-        {renderItems(NAV_SETTINGS)}
       </div>
     </nav>
   );
@@ -190,14 +190,14 @@ export function AppShell() {
           mobile ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <div className="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-4">
-          <div className="flex items-center gap-2">
-            <div className="grid h-9 w-9 place-items-center rounded-lg bg-white/10">
-              <BarChart3 className="h-4 w-4" />
+        <div className="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-5">
+          <div className="flex items-center gap-2.5">
+            <div className="grid h-12 w-12 place-items-center rounded-xl bg-white/10">
+              <BarChart3 className="h-6 w-6" />
             </div>
             <div>
-              <p className="text-sm font-semibold leading-tight">Portfolio Manager</p>
-              <p className="text-xs text-white/50">Sổ cái thuần tài sản</p>
+              <p className="text-base font-semibold leading-tight">Portfolio Manager</p>
+              <p className="text-sm text-white/50">Sổ cái thuần tài sản</p>
             </div>
           </div>
           <button className="grid h-10 w-10 place-items-center md:hidden" onClick={() => setMobile(false)}>

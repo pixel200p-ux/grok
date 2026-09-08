@@ -111,7 +111,7 @@ export function CalendarPage() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Lịch kinh tế</h1>
+          <h1 className="text-4xl font-semibold tracking-tight">Calendar</h1>
           <p className="text-sm text-muted-foreground">
             Nhập mốc · banner hiện từ 3 ngày trước đến đúng ngày, trên mọi trang
           </p>

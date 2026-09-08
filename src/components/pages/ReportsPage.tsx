@@ -45,7 +45,7 @@ export function ReportsPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-xl font-semibold">Reports</h1>
+        <h1 className="text-4xl font-semibold tracking-tight">Reports</h1>
         <p className="text-sm text-muted-foreground">Sổ lịch sử toàn danh mục · chỉ xem, không sửa/xóa</p>
       </div>
 

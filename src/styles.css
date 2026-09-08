@@ -49,7 +49,7 @@
 :root {
   --app-bg: #cdd5df;
   --app-surface: #e2e8ef;
-  --app-sidebar: #0a2540;
+    --app-sidebar: #0c1a2b;
   --app-sidebar-fg: #e8eef4;
   --app-navy: #0a2540;
   --app-navy-deep: #061525;
@@ -76,7 +76,7 @@ html.dark {
   color-scheme: dark;
   --app-bg: #07111c;
   --app-surface: #0c1a2b;
-  --app-sidebar: #061018;
+  --app-sidebar: #0c1a2b;
   --app-sidebar-fg: #e8eef4;
   --app-navy: #7aa2d4;
   --app-navy-deep: #0a2540;
