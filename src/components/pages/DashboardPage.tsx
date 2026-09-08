@@ -11,11 +11,7 @@ import { signedClass } from "@/engine/money";
 import { displayMoney } from "@/lib/display";
 import { usePortfolio } from "@/lib/use-portfolio";
 import { useUiStore } from "@/lib/ui-store";
-import { confirmBankRate } from "@/lib/api/portfolio";
-import { usePortfolioMutation } from "@/lib/use-portfolio";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 
 const CAT_ORDER = ["DCDS", "ETF", "STOCK", "CRYPTO", "BANK"] as const;
@@ -34,8 +30,6 @@ export function DashboardPage() {
   const setStockFilter = useUiStore((s) => s.setStockFilter);
   const openCapital = useUiStore((s) => s.openCapital);
   const openTx = useUiStore((s) => s.openTx);
-  const rateMut = usePortfolioMutation((d: Parameters<typeof confirmBankRate>[0]) => confirmBankRate(d), "Đã cập nhật lãi suất");
-  const [rateDraft, setRateDraft] = useState<Record<string, string>>({});
 
   if (isPending || !data) {
     return (
@@ -55,7 +49,6 @@ export function DashboardPage() {
     return h.accountId === stockFilter;
   });
 
-  const due = state.banks.filter((b) => b.remainingDays <= 5);
   const alloc = CAT_ORDER.map((k) => ({
     key: k,
     label: CAT_LABEL[k],
@@ -82,41 +75,6 @@ export function DashboardPage() {
           </Button>
         </div>
       </div>
-
-      {due.map((b) => (
-        <Card key={b.id} className="border-warn/40 bg-warn/5 p-4">
-          {b.remainingDays <= 0 ? (
-            <p className="text-sm font-medium">
-              Hết hôm nay số tiền gửi ngân hàng {b.bankName} sẽ đáo hạn — {displayMoney(b.currentPrincipal, currency, usd)}.
-            </p>
-          ) : (
-            <p className="text-sm font-medium">
-              Sổ {b.bankName} còn {b.remainingDays} ngày đáo hạn. Nhập lãi suất kỳ tái tục nếu có thay đổi.
-            </p>
-          )}
-          {b.rateUnconfirmed && (
-            <p className="mt-1 text-xs text-warn">Vẫn chưa nhập lãi suất kỳ này — đang dùng tạm {b.currentRate}%.</p>
-          )}
-          <form
-            className="mt-3 flex flex-wrap items-center gap-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              const r = Number(rateDraft[b.id] ?? b.currentRate);
-              rateMut.mutate({ data: { depositId: b.id, periodNumber: b.rateUnconfirmed ? b.renewalCount : b.renewalCount + 1, interestRate: r } });
-            }}
-          >
-            <Input
-              className="w-28"
-              value={rateDraft[b.id] ?? String(b.currentRate)}
-              onChange={(e) => setRateDraft((d) => ({ ...d, [b.id]: e.target.value }))}
-            />
-            <span className="text-xs text-muted-foreground">%/năm</span>
-            <Button size="sm" type="submit">
-              Lưu lãi suất
-            </Button>
-          </form>
-        </Card>
-      ))}
 
               <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)_minmax(0,1fr)] md:items-stretch">
         <NavOriginalCard

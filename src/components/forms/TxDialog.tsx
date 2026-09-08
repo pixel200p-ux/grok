@@ -9,7 +9,7 @@ import { useUiStore } from "@/lib/ui-store";
 import { usePortfolio, usePortfolioMutation } from "@/lib/use-portfolio";
 import { saveBank, saveTransaction } from "@/lib/api/portfolio";
 import { dcdsQty } from "@/engine/replay";
-import { parseBrokerPrice, parseDecimal, parseVndAmount, formatQty, formatBrokerPrice } from "@/engine/money";
+import { parseBrokerPrice, parseDecimal, parseVndAmount, formatQty, formatBrokerPrice, formatThousandsInput } from "@/engine/money";
 import { todayYmd, formatViDate } from "@/engine/dates";
 import { displayPrice } from "@/lib/display";
 import type { AssetType, FeeProfile, TxType } from "@/engine/types";
@@ -72,36 +72,42 @@ export function TxDialog() {
   const [bankRollover, setBankRollover] = useState(true);
 
     const editing = Boolean(prefill?.id);
+      function setGrouped(setter: (v: string) => void) {
+    return (e: React.ChangeEvent<HTMLInputElement>) => setter(formatThousandsInput(e.target.value));
+  }
 
   useEffect(() => {
     if (!prefill) return;
     setKind(prefill.assetType ?? "STOCK");
     setStockAccount(prefill.accountId === "ssi" ? "ssi" : "vps");
     setTxType(prefill.txType ?? "BUY");
-    setSymbol(prefill.symbol ?? "");
+        setSymbol(
+      prefill.symbol ??
+        (prefill.assetType === "DCDS" ? "DCDS" : prefill.assetType === "ETF" ? "ETF" : ""),
+    );setSymbol(prefill.symbol ?? "");
     setName(prefill.name ?? "");
     setTplus(prefill.tradeTplus ?? false);
     setDate(prefill.txDate ?? todayYmd());
-    setFx(prefill.fxRate != null ? String(prefill.fxRate) : data?.state.usdVnd ? String(data.state.usdVnd) : "25000");
-    setFeeOverride(prefill.id && prefill.fee != null ? String(prefill.fee) : "");
-    setTaxOverride(prefill.id && prefill.tax != null ? String(prefill.tax) : "");
-    setDivTotal(prefill.txType === "CASH_DIVIDEND" && prefill.amount != null ? String(prefill.amount) : "");
-    setStockDivQty(prefill.stockDivQty != null ? String(prefill.stockDivQty) : "");
+    setFx(formatThousandsInput(prefill.fxRate != null ? String(prefill.fxRate) : data?.state.usdVnd ? String(data.state.usdVnd) : "25000"));
+    setFeeOverride(prefill.id && prefill.fee != null ? formatThousandsInput(String(prefill.fee)) : "");
+    setTaxOverride(prefill.id && prefill.tax != null ? formatThousandsInput(String(prefill.tax)) : "");
+    setDivTotal(prefill.txType === "CASH_DIVIDEND" && prefill.amount != null ? formatThousandsInput(String(prefill.amount)) : "");
+    setStockDivQty(prefill.stockDivQty != null ? formatThousandsInput(String(prefill.stockDivQty)) : "");
     setBankPrincipal("");
 
     const at = prefill.assetType ?? "STOCK";
     if (prefill.id && (prefill.txType === "BUY" || prefill.txType === "SELL")) {
       if (at === "DCDS" || at === "CRYPTO") {
-        setAmount(prefill.amount != null ? String(prefill.amount) : "");
-        setPrice(prefill.price != null ? String(prefill.price) : "");
-        setQty(prefill.quantity != null ? String(prefill.quantity) : "");
+                setAmount(prefill.amount != null ? formatThousandsInput(String(prefill.amount)) : "");
+        setPrice(prefill.price != null ? formatThousandsInput(String(prefill.price)) : "");
+        setQty(prefill.quantity != null ? formatThousandsInput(String(prefill.quantity)) : "");
       } else {
         setAmount("");
-        setQty(prefill.quantity != null ? String(prefill.quantity) : "");
+                setQty(prefill.quantity != null ? formatThousandsInput(String(prefill.quantity)) : "");
         setPrice(prefill.price != null ? formatBrokerPrice(prefill.price) : "");
       }
     } else {
-      setQty(prefill.quantity != null ? String(prefill.quantity) : "");
+            setQty(prefill.quantity != null ? formatThousandsInput(String(prefill.quantity)) : "");
       setPrice(
         prefill.price != null
           ? String(at === "CRYPTO" || at === "DCDS" ? prefill.price : prefill.price / 1000)
@@ -111,7 +117,7 @@ export function TxDialog() {
     }
 
     const next: Record<string, string> = {};
-    for (const m of prefill.matches ?? []) next[m.buyTxId] = String(m.quantity);
+        for (const m of prefill.matches ?? []) next[m.buyTxId] = formatThousandsInput(String(m.quantity));
     setMatchQty(next);
   }, [prefill, data?.state.usdVnd]);
 
@@ -152,10 +158,10 @@ export function TxDialog() {
   useEffect(() => {
     if (!prefill?.matchAllOpen || openLots.length === 0) return;
     const next: Record<string, string> = {};
-    for (const l of openLots) next[l.buyTxId] = String(l.qtyRemaining);
+        for (const l of openLots) next[l.buyTxId] = formatThousandsInput(String(l.qtyRemaining));
     setMatchQty(next);
     const sum = openLots.reduce((s, l) => s + l.qtyRemaining, 0);
-    setQty(String(sum));
+    setQty(formatThousandsInput(String(sum)));
   }, [prefill?.matchAllOpen, openLots.length]);
 
   const canTplus = (kind === "STOCK" || kind === "CRYPTO") && txType === "BUY";
@@ -251,10 +257,12 @@ export function TxDialog() {
               <button
                 key={t.value}
                 type="button"
-                onClick={() => {
+                                onClick={() => {
                   setKind(t.value);
                   if (t.value !== "STOCK" && (txType === "CASH_DIVIDEND" || txType === "STOCK_DIVIDEND")) setTxType("BUY");
                   if (t.value !== "STOCK" && t.value !== "CRYPTO") setTplus(false);
+                  if (t.value === "DCDS") setSymbol("DCDS");
+                  else if (t.value === "ETF") setSymbol("ETF");
                 }}
                 className={`min-h-10 rounded-full border px-3 text-xs font-medium ${kind === t.value ? "border-primary bg-primary/10 text-primary" : "border-border"}`}
               >
@@ -289,7 +297,7 @@ export function TxDialog() {
               </div>
               <div className="space-y-1">
                 <Label>Số tiền gửi (VND)</Label>
-                <Input value={bankPrincipal} onChange={(e) => setBankPrincipal(e.target.value)} placeholder="100,000,000" required />
+                <Input value={bankPrincipal} onChange={setGrouped(setBankPrincipal)} placeholder="100,000,000" required />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
@@ -341,7 +349,7 @@ export function TxDialog() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label>Mã</Label>
-                  <Input value={symbol} onChange={(e) => setSymbol(e.target.value)} placeholder={kind === "CRYPTO" ? "BTC" : "MBB"} required={!isBank} />
+                  <Input value={symbol} onChange={(e) => setSymbol(e.target.value)} placeholder={kind === "CRYPTO" ? "BTC" : kind === "DCDS" ? "DCDS" : kind === "ETF" ? "ETF" : "MBB"} required={!isBank} />
                 </div>
                 <div className="space-y-1">
                   <Label>Tên</Label>
@@ -352,14 +360,14 @@ export function TxDialog() {
               {txType === "CASH_DIVIDEND" && (
                 <div className="space-y-1">
                   <Label>Tổng tiền thực nhận (VND)</Label>
-                  <Input value={divTotal} onChange={(e) => setDivTotal(e.target.value)} placeholder="1,000,000" />
+                  <Input value={divTotal} onChange={setGrouped(setDivTotal)} placeholder="1,000,000" />
                 </div>
               )}
 
               {txType === "STOCK_DIVIDEND" && (
                 <div className="space-y-1">
                   <Label>Số lượng CP thưởng thực nhận</Label>
-                  <Input value={stockDivQty} onChange={(e) => setStockDivQty(e.target.value)} />
+                  <Input value={stockDivQty} onChange={setGrouped(setStockDivQty)} />
                   <p className="text-xs text-muted-foreground">Tăng holdings, pha loãng giá vốn trung bình.</p>
                 </div>
               )}
@@ -372,7 +380,7 @@ export function TxDialog() {
                         <Label>{isCryptoBuy ? "Số tiền mua (USD)" : "Số tiền mua (VND)"}</Label>
                         <Input
                           value={amount}
-                          onChange={(e) => setAmount(e.target.value)}
+                          onChange={setGrouped(setAmount)}
                           placeholder={isCryptoBuy ? "1000" : "10000000"}
                           required
                         />
@@ -381,7 +389,7 @@ export function TxDialog() {
                         <Label>{isCryptoBuy ? "Giá (USD)" : "Giá CCQ (VND)"}</Label>
                         <Input
                           value={price}
-                          onChange={(e) => setPrice(e.target.value)}
+                          onChange={setGrouped(setPrice)}
                           placeholder={isCryptoBuy ? "65000" : "15000"}
                           required
                         />
@@ -399,11 +407,11 @@ export function TxDialog() {
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <Label>Khối lượng</Label>
-                        <Input value={qty} onChange={(e) => setQty(e.target.value)} placeholder="1000" required />
+                        <Input value={qty} onChange={setGrouped(setQty)} placeholder="1000" required />
                       </div>
                       <div className="space-y-1">
                         <Label>Giá {kind === "CRYPTO" ? "(USD)" : kind === "DCDS" ? "(VND)" : "(13.5 = 13.500 ₫)"}</Label>
-                        <Input value={price} onChange={(e) => setPrice(e.target.value)} placeholder={kind === "CRYPTO" ? "65000" : "13.5"} required />
+                        <Input value={price} onChange={setGrouped(setPrice)} placeholder={kind === "CRYPTO" ? "65,000" : "13.5"} required />
                       </div>
                     </div>
                   )}
@@ -411,7 +419,7 @@ export function TxDialog() {
                   {kind === "CRYPTO" && (
                     <div className="space-y-1">
                       <Label>Tỷ giá USD/VND khóa theo lệnh</Label>
-                      <Input value={fx} onChange={(e) => setFx(e.target.value)} />
+                      <Input value={fx} onChange={setGrouped(setFx)} />
                     </div>
                   )}
 
@@ -436,7 +444,9 @@ export function TxDialog() {
                           <Input
                             className="w-24"
                             value={matchQty[l.buyTxId] ?? ""}
-                            onChange={(e) => setMatchQty((m) => ({ ...m, [l.buyTxId]: e.target.value }))}
+                            onChange={(e) =>
+  setMatchQty((m) => ({ ...m, [l.buyTxId]: formatThousandsInput(e.target.value) }))
+}
                             placeholder="0"
                           />
                         </div>
@@ -447,11 +457,11 @@ export function TxDialog() {
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div className="space-y-1">
                       <Label>Phí (mặc định {defaultFeePct}%)</Label>
-                      <Input value={feeOverride} onChange={(e) => setFeeOverride(e.target.value)} placeholder={String(Math.round(autoFee * 100) / 100)} />
+                      <Input value={feeOverride} onChange={setGrouped(setFeeOverride)} placeholder={String(Math.round(autoFee * 100) / 100)} />
                     </div>
                     <div className="space-y-1">
                       <Label>Thuế (mặc định {defaultTaxPct}%)</Label>
-                      <Input value={taxOverride} onChange={(e) => setTaxOverride(e.target.value)} placeholder={String(Math.round(autoTax * 100) / 100)} />
+                      <Input value={taxOverride} onChange={setGrouped(setTaxOverride)} placeholder={String(Math.round(autoTax * 100) / 100)} />
                     </div>
                   </div>
                 </>

@@ -47,8 +47,8 @@
 }
 
 :root {
-  --app-bg: #e6ebf1;
-  --app-surface: #ffffff;
+  --app-bg: #cdd5df;
+  --app-surface: #e2e8ef;
   --app-sidebar: #0a2540;
   --app-sidebar-fg: #e8eef4;
   --app-navy: #0a2540;
@@ -56,8 +56,8 @@
   --app-on-navy: #f7f9fc;
   --app-fg: #0c1929;
   --app-fg-muted: #5b6b7c;
-  --app-muted: #e8edf2;
-  --app-secondary: #eef2f6;
+  --app-muted: #d4dce5;
+  --app-secondary: #d9e1ea;
   --app-accent: #163e6f;
   --app-border: color-mix(in oklab, #0c1929 18%, transparent);
   --app-profit: #0f7b5a;
@@ -68,8 +68,8 @@
   --app-chart-stock: #163e6f;
   --app-chart-crypto: #3d5a80;
   --app-chart-bank: #2a6f97;
-  --shadow-card: 0 1px 2px color-mix(in oklab, #0a2540 10%, transparent),
-    0 10px 28px color-mix(in oklab, #0a2540 8%, transparent);
+  --shadow-card: 0 1px 2px color-mix(in oklab, #0a2540 14%, transparent),
+  0 4px 12px color-mix(in oklab, #0a2540 8%, transparent);
 }
 
 html.dark {
@@ -134,7 +134,7 @@ html.dark {
 }
 
 .tabular {
-  font-variant-numeric: tabular-nums;
+  --app-border: color-mix(in oklab, #0c1929 24%, transparent);
   font-family: var(--font-mono);
 }
 

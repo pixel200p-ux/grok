@@ -14,7 +14,16 @@ export function num(v: unknown): number {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
 }
-
+/** Hiện dấu phẩy nghìn khi đang gõ. Giữ dấu chấm thập phân. */
+export function formatThousandsInput(raw: string): string {
+  const cleaned = raw.replace(/[^\d.]/g, "");
+  if (!cleaned) return "";
+  const dot = cleaned.indexOf(".");
+  const intRaw = (dot >= 0 ? cleaned.slice(0, dot) : cleaned).replace(/^0+(?=\d)/, "");
+  const frac = dot >= 0 ? cleaned.slice(dot + 1).replace(/\./g, "") : "";
+  const grouped = intRaw.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return dot >= 0 ? `${grouped}.${frac}` : grouped;
+}
 /**
  * Parse a VN broker-style *price*.
  * 13.5 → 13_500, 100 → 100_000, 13,500 → 13_500, 13500 → 13_500.
@@ -69,8 +78,8 @@ export function parseVndAmount(input: string): number {
 }
 
 export function parseDecimal(input: string): number {
-  const t = input.trim().replace(/\s/g, "").replace(",", ".");
-  if (!t) return 0;
+  const t = input.trim().replace(/\s/g, "").replace(/,/g, "");
+  if (!t || t === ".") return 0;
   const n = Number(t);
   return Number.isFinite(n) ? n : 0;
 }

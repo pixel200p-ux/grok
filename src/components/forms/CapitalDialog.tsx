@@ -6,7 +6,7 @@ import { Select } from "@/components/ui/select";
 import { useUiStore } from "@/lib/ui-store";
 import { usePortfolioMutation } from "@/lib/use-portfolio";
 import { saveCapital } from "@/lib/api/portfolio";
-import { parseVndAmount } from "@/engine/money";
+import { parseVndAmount, formatThousandsInput } from "@/engine/money";
 import { todayYmd } from "@/engine/dates";
 import type { CapitalBucket } from "@/engine/types";
 import { useEffect, useState } from "react";
@@ -65,7 +65,12 @@ export function CapitalDialog() {
           </div>
           <div className="space-y-1">
             <Label>Số tiền (VND)</Label>
-            <Input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="50,000,000" required />
+            <Input
+  value={amount}
+  onChange={(e) => setAmount(formatThousandsInput(e.target.value))}
+  placeholder="50,000,000"
+  required
+/>
           </div>
           <div className="space-y-1">
             <Label>Ngày</Label>

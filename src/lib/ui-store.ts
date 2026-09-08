@@ -34,6 +34,7 @@ type UiState = {
   capitalOpen: "DEPOSIT" | "WITHDRAW" | null;
     bankOpen: boolean;
   bankEditId: string | null;
+    notifyOpen: boolean;
   setTheme: (t: ThemeMode) => void;
   toggleTheme: () => void;
   toggleCurrency: () => void;
@@ -44,6 +45,8 @@ type UiState = {
   closeCapital: () => void;
     openBank: (id?: string) => void;
   closeBank: () => void;
+    setNotifyOpen: (v: boolean) => void;
+  toggleNotify: () => void;
 };
 
 export const useUiStore = create<UiState>()(
@@ -56,6 +59,7 @@ export const useUiStore = create<UiState>()(
       capitalOpen: null,
       bankOpen: false,
       bankEditId: null,
+      notifyOpen: false,
       setTheme: (theme) => set({ theme }),
       toggleTheme: () => set({ theme: get().theme === "light" ? "dark" : "light" }),
       toggleCurrency: () => set({ currency: get().currency === "VND" ? "USD" : "VND" }),
@@ -66,6 +70,8 @@ export const useUiStore = create<UiState>()(
       closeCapital: () => set({ capitalOpen: null }),
       openBank: (id) => set({ bankOpen: true, bankEditId: id ?? null }),
       closeBank: () => set({ bankOpen: false, bankEditId: null }),
+            setNotifyOpen: (notifyOpen) => set({ notifyOpen }),
+      toggleNotify: () => set({ notifyOpen: !get().notifyOpen }),
     }),
     {
       name: "pm-ui",

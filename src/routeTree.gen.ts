@@ -13,6 +13,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppBankRouteImport } from './routes/_app/bank'
+import { Route as AppCalendarRouteImport } from './routes/_app/calendar'
 import { Route as AppCryptoRouteImport } from './routes/_app/crypto'
 import { Route as AppDcdsRouteImport } from './routes/_app/dcds'
 import { Route as AppEtfRouteImport } from './routes/_app/etf'
@@ -39,6 +40,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
 const AppBankRoute = AppBankRouteImport.update({
   id: '/bank',
   path: '/bank',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCalendarRoute = AppCalendarRouteImport.update({
+  id: '/calendar',
+  path: '/calendar',
   getParentRoute: () => AppRoute,
 } as any)
 const AppCryptoRoute = AppCryptoRouteImport.update({
@@ -86,6 +92,7 @@ export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
   '/bank': typeof AppBankRoute
+  '/calendar': typeof AppCalendarRoute
   '/crypto': typeof AppCryptoRoute
   '/dcds': typeof AppDcdsRoute
   '/etf': typeof AppEtfRoute
@@ -98,6 +105,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/bank': typeof AppBankRoute
+  '/calendar': typeof AppCalendarRoute
   '/crypto': typeof AppCryptoRoute
   '/dcds': typeof AppDcdsRoute
   '/etf': typeof AppEtfRoute
@@ -113,6 +121,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/_app/bank': typeof AppBankRoute
+  '/_app/calendar': typeof AppCalendarRoute
   '/_app/crypto': typeof AppCryptoRoute
   '/_app/dcds': typeof AppDcdsRoute
   '/_app/etf': typeof AppEtfRoute
@@ -129,6 +138,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/bank'
+    | '/calendar'
     | '/crypto'
     | '/dcds'
     | '/etf'
@@ -141,6 +151,7 @@ export interface FileRouteTypes {
   to:
     | '/login'
     | '/bank'
+    | '/calendar'
     | '/crypto'
     | '/dcds'
     | '/etf'
@@ -155,6 +166,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/login'
     | '/_app/bank'
+    | '/_app/calendar'
     | '/_app/crypto'
     | '/_app/dcds'
     | '/_app/etf'
@@ -200,6 +212,13 @@ declare module '@tanstack/react-router' {
       path: '/bank'
       fullPath: '/bank'
       preLoaderRoute: typeof AppBankRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/calendar': {
+      id: '/_app/calendar'
+      path: '/calendar'
+      fullPath: '/calendar'
+      preLoaderRoute: typeof AppCalendarRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/crypto': {
@@ -263,6 +282,7 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppBankRoute: typeof AppBankRoute
+  AppCalendarRoute: typeof AppCalendarRoute
   AppCryptoRoute: typeof AppCryptoRoute
   AppDcdsRoute: typeof AppDcdsRoute
   AppEtfRoute: typeof AppEtfRoute
@@ -275,6 +295,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppBankRoute: AppBankRoute,
+  AppCalendarRoute: AppCalendarRoute,
   AppCryptoRoute: AppCryptoRoute,
   AppDcdsRoute: AppDcdsRoute,
   AppEtfRoute: AppEtfRoute,

@@ -1,7 +1,8 @@
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
 import {
-  BarChart3,
+      BarChart3,
   Building2,
+  CalendarDays,
   CandlestickChart,
   Coins,
   Landmark,
@@ -31,6 +32,7 @@ import { toast } from "sonner";
 import { TxDialog } from "@/components/forms/TxDialog";
 import { CapitalDialog } from "@/components/forms/CapitalDialog";
 import { BankDialog } from "@/components/forms/BankDialog";
+import { NotificationFooter, NotifyBell } from "@/components/NotificationFooter";
 import { cn } from "@/lib/utils";
 
 const NAV_HOME = [{ to: "/", label: "Dashboard", icon: LayoutDashboard }] as const;
@@ -46,8 +48,10 @@ const NAV_ASSETS = [
 const NAV_TOOLS = [
   { to: "/tplus", label: "Trade T+", icon: BarChart3 },
   { to: "/reports", label: "Reports", icon: Wallet },
-  { to: "/settings", label: "Settings", icon: Settings },
+  { to: "/calendar", label: "Lịch", icon: CalendarDays },
 ] as const;
+
+const NAV_SETTINGS = [{ to: "/settings", label: "Settings", icon: Settings }] as const;
 function formatPriceAgo(iso: string | null): string {
   if (!iso) return "Chưa cập nhật giá";
   const then = new Date(iso).getTime();
@@ -109,7 +113,7 @@ export function AppShell() {
     }
   }
 
-    function renderItems(items: typeof NAV_HOME | typeof NAV_ASSETS | typeof NAV_TOOLS) {
+        function renderItems(items: typeof NAV_HOME | typeof NAV_ASSETS | typeof NAV_TOOLS | typeof NAV_SETTINGS) {
     return items.map((item) => {
       const active = item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
       const Icon = item.icon;
@@ -132,17 +136,42 @@ export function AppShell() {
     });
   }
 
-  const nav = (
-    <nav className="flex flex-1 flex-col gap-1 p-3">
-      {renderItems(NAV_HOME)}
+    const nav = (
+    <nav className="flex flex-1 flex-col p-3">
+      <div className="flex flex-1 flex-col gap-1">
+        {renderItems(NAV_HOME)}
 
-      <div className="my-1 rounded-xl bg-white/[0.06] p-1 ring-1 ring-inset ring-white/10">
-        {renderItems(NAV_ASSETS)}
+        <div className="my-1 rounded-xl bg-white/[0.06] p-1 ring-1 ring-inset ring-white/10">
+          {renderItems(NAV_ASSETS)}
+        </div>
+
+        <div className="mx-3 my-1.5 h-px bg-white/10" aria-hidden />
+
+        {renderItems(NAV_TOOLS)}
       </div>
 
-      <div className="mx-3 my-1.5 h-px bg-white/10" aria-hidden />
-
-      {renderItems(NAV_TOOLS)}
+      <div className="mt-3 border-t border-white/10 pt-2">
+        <div className="mb-1 flex items-center gap-1 px-2 py-1">
+          <span className="min-w-0 flex-1 truncate px-1 text-xs text-white/55" title={email}>
+            {email}
+          </span>
+          <Tooltip content="Đăng xuất">
+            <button
+              type="button"
+              disabled={signingOut}
+              onClick={() => {
+                setSigningOut(true);
+                void signOut().catch(() => setSigningOut(false));
+              }}
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-md text-white/70 hover:bg-white/10 hover:text-white"
+              aria-label="Đăng xuất"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </Tooltip>
+        </div>
+        {renderItems(NAV_SETTINGS)}
+      </div>
     </nav>
   );
 
@@ -179,7 +208,7 @@ export function AppShell() {
       </aside>
 
       <div className="md:pl-60">
-        <header className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-2 border-b border-border bg-card/90 px-3 py-2 backdrop-blur md:px-6">
+                <header className="sticky top-0 z-50 flex flex-wrap items-center justify-between gap-2 border-b border-border bg-card/90 px-3 py-2 backdrop-blur md:px-6">
           <div className="flex items-center gap-2">
             <button
               className="grid h-10 w-10 place-items-center rounded-md hover:bg-muted md:hidden"
@@ -208,31 +237,16 @@ export function AppShell() {
               <span className="text-muted-foreground">/</span>
               <span className={currency === "USD" ? "font-semibold" : "text-muted-foreground"}>USD</span>
             </Button>
+            <NotifyBell />
             <Button size="icon" variant="outline" onClick={toggleTheme} title="Theme">
               {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
-            <div className="flex items-center gap-1 pl-1">
-              <span className="hidden max-w-40 truncate text-xs text-muted-foreground sm:inline">{email}</span>
-              <Tooltip content="Đăng xuất">
-                <button
-                  type="button"
-                  disabled={signingOut}
-                  onClick={() => {
-                    setSigningOut(true);
-                    void signOut().catch(() => setSigningOut(false));
-                  }}
-                  className="grid h-10 w-10 place-items-center rounded-md hover:bg-muted"
-                  aria-label="Đăng xuất"
-                >
-                  <LogOut className="h-4 w-4" />
-                </button>
-              </Tooltip>
-            </div>
           </div>
-        </header>
-        <main className="min-w-0 overflow-x-hidden p-3 md:p-6">
+                         </header>
+        <main className="min-w-0 overflow-x-hidden p-3 pb-4 md:p-6">
           <Outlet />
         </main>
+        <NotificationFooter />
       </div>
       <TxDialog />
       <CapitalDialog />
