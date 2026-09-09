@@ -170,8 +170,11 @@ export function DashboardPage() {
               .slice(0, 6)
               .map((c) => (
                 <li key={c.id} className="flex justify-between gap-2">
-                  <span>
-                    {formatViDate(c.movementDate)} · {c.kind === "DEPOSIT" ? "Nạp" : "Rút"}
+                  <span className="min-w-0">
+                    {formatViDate(c.movementDate)} · {c.kind === "DEPOSIT" ? "Nạp" : "Rút"} · {c.bucket}
+                    {c.notes ? (
+                      <span className="mt-0.5 block text-xs text-muted-foreground">{c.notes}</span>
+                    ) : null}
                   </span>
                   <span className={c.kind === "DEPOSIT" ? "text-profit" : "text-loss"}>
                     {c.kind === "DEPOSIT" ? "+" : "−"}

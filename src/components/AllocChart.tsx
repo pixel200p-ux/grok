@@ -7,6 +7,8 @@ const COLORS: Record<string, string> = {
   STOCK: "var(--app-chart-stock)",
   CRYPTO: "var(--app-chart-crypto)",
   BANK: "var(--app-chart-bank)",
+  VPS: "var(--app-chart-stock)",
+  SSI: "var(--app-chart-bank)",
 };
 
 function compactMoney(vnd: number, currency: "VND" | "USD", usdVnd: number): string {

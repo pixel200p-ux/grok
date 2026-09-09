@@ -1,4 +1,5 @@
 import { AllocChart } from "@/components/AllocChart";
+import { BrokerPieChart } from "@/components/BrokerPieChart";
 import { HoldingsTable } from "@/components/HoldingsTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -161,6 +162,16 @@ export function AssetPage({ assetType }: { assetType: AssetType }) {
       const tot = holdings.filter((x) => x.accountId === "ssi").reduce((s, x) => s + x.marketValue, 0);
       return { key: h.assetId, label: h.symbol, value: h.marketValue, pct: tot ? (h.marketValue / tot) * 100 : 0 };
     });
+  const originalTotal = ob.VPS + ob.SSI;
+  const originalCompare = [
+    { key: "VPS", label: "VPS", value: ob.VPS, pct: originalTotal > 0 ? (ob.VPS / originalTotal) * 100 : 0 },
+    { key: "SSI", label: "SSI", value: ob.SSI, pct: originalTotal > 0 ? (ob.SSI / originalTotal) * 100 : 0 },
+  ];
+  const navTotal = nb.VPS + nb.SSI;
+  const navCompare = [
+    { key: "VPS", label: "VPS", value: nb.VPS, pct: navTotal > 0 ? (nb.VPS / navTotal) * 100 : 0 },
+    { key: "SSI", label: "SSI", value: nb.SSI, pct: navTotal > 0 ? (nb.SSI / navTotal) * 100 : 0 },
+  ];
 
   return (
     <div className="space-y-5">
@@ -206,6 +217,20 @@ export function AssetPage({ assetType }: { assetType: AssetType }) {
           <TplusLoweredCard key={c.key} title={c.title} amount={c.amount} hint={c.hint} usdVnd={usd} />
         ))}
       </div>
+            {assetType === "STOCK" && stockFilter === "ALL" && (
+                <div className="flex flex-wrap items-start gap-4">
+          <Card className="w-full sm:w-[32rem]">
+            <CardTitle>Original VPS / SSI</CardTitle>
+            <CardDesc className="mb-3">Vốn gốc theo tài khoản · % trên tổng Original Stock</CardDesc>
+            <BrokerPieChart data={originalCompare} usdVnd={usd} centerLabel="Original" />
+          </Card>
+          <Card className="w-full sm:w-[32rem]">
+            <CardTitle>NAV VPS / SSI</CardTitle>
+            <CardDesc className="mb-3">Giá trị hiện tại theo tài khoản · % trên tổng NAV Stock</CardDesc>
+            <BrokerPieChart data={navCompare} usdVnd={usd} centerLabel="NAV" />
+          </Card>
+        </div>
+      )}
                   {assetType === "STOCK" && (
         <div className="grid gap-4 md:grid-cols-10">
           <Card className={stockFilter === "ssi" ? "md:col-span-3" : stockFilter === "vps" ? "md:col-span-7" : "md:col-span-5"}>

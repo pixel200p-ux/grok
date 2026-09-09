@@ -6,6 +6,7 @@ import { replayOriginalByBucket, replayPortfolio } from "@/engine/replay";
 import { formatVnd } from "@/engine/money";
 import { replayBank } from "@/engine/bank";
 import { todayYmd } from "@/engine/dates";
+import { ensureDailyPriceSnapshot } from "@/lib/api/prices";
 import type { LedgerSnapshot, PortfolioState } from "@/engine/types";
 import {
   mapAccount,
@@ -54,6 +55,7 @@ export type PortfolioPayload = {
 export const fetchPortfolio = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async (): Promise<PortfolioPayload> => {
+    await ensureDailyPriceSnapshot();
     const ledger = await loadSnapshot();
     return { ledger, state: replayPortfolio(ledger) };
   });

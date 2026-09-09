@@ -3,6 +3,7 @@ import {
       BarChart3,
   Building2,
   CalendarDays,
+  UserRound,
   CandlestickChart,
   Coins,
   Landmark,
@@ -49,6 +50,7 @@ const NAV_TOOLS = [
   { to: "/tplus", label: "Trade T+", icon: BarChart3 },
   { to: "/reports", label: "Reports", icon: Wallet },
   { to: "/calendar", label: "Calendar", icon: CalendarDays },
+  { to: "/profile", label: "Profile", icon: UserRound },
 ] as const;
 
 const NAV_SETTINGS = [{ to: "/settings", label: "Settings", icon: Settings }] as const;
@@ -184,14 +186,14 @@ export function AppShell() {
           aria-label="Đóng menu"
         />
       )}
-      <aside
+            <aside
         className={cn(
           "fixed inset-y-0 left-0 z-40 flex w-60 flex-col bg-sidebar text-sidebar-foreground transition-transform md:translate-x-0",
           mobile ? "translate-x-0" : "-translate-x-full",
         )}
       >
         <div className="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-5">
-          <div className="flex items-center gap-2.5">
+          <Link to="/" onClick={() => setMobile(false)} className="flex min-w-0 items-center gap-2.5">
             <div className="grid h-12 w-12 place-items-center rounded-xl bg-white/10">
               <BarChart3 className="h-6 w-6" />
             </div>
@@ -199,7 +201,7 @@ export function AppShell() {
               <p className="text-base font-semibold leading-tight">Portfolio Manager</p>
               <p className="text-sm text-white/50">Sổ cái thuần tài sản</p>
             </div>
-          </div>
+          </Link>
           <button className="grid h-10 w-10 place-items-center md:hidden" onClick={() => setMobile(false)}>
             <X className="h-4 w-4" />
           </button>

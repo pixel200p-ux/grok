@@ -17,6 +17,7 @@ import { Route as AppCalendarRouteImport } from './routes/_app/calendar'
 import { Route as AppCryptoRouteImport } from './routes/_app/crypto'
 import { Route as AppDcdsRouteImport } from './routes/_app/dcds'
 import { Route as AppEtfRouteImport } from './routes/_app/etf'
+import { Route as AppProfileRouteImport } from './routes/_app/profile'
 import { Route as AppReportsRouteImport } from './routes/_app/reports'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppStockRouteImport } from './routes/_app/stock'
@@ -62,6 +63,11 @@ const AppEtfRoute = AppEtfRouteImport.update({
   path: '/etf',
   getParentRoute: () => AppRoute,
 } as any)
+const AppProfileRoute = AppProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppReportsRoute = AppReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
@@ -96,6 +102,7 @@ export interface FileRoutesByFullPath {
   '/crypto': typeof AppCryptoRoute
   '/dcds': typeof AppDcdsRoute
   '/etf': typeof AppEtfRoute
+  '/profile': typeof AppProfileRoute
   '/reports': typeof AppReportsRoute
   '/settings': typeof AppSettingsRoute
   '/stock': typeof AppStockRoute
@@ -109,6 +116,7 @@ export interface FileRoutesByTo {
   '/crypto': typeof AppCryptoRoute
   '/dcds': typeof AppDcdsRoute
   '/etf': typeof AppEtfRoute
+  '/profile': typeof AppProfileRoute
   '/reports': typeof AppReportsRoute
   '/settings': typeof AppSettingsRoute
   '/stock': typeof AppStockRoute
@@ -125,6 +133,7 @@ export interface FileRoutesById {
   '/_app/crypto': typeof AppCryptoRoute
   '/_app/dcds': typeof AppDcdsRoute
   '/_app/etf': typeof AppEtfRoute
+  '/_app/profile': typeof AppProfileRoute
   '/_app/reports': typeof AppReportsRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/stock': typeof AppStockRoute
@@ -142,6 +151,7 @@ export interface FileRouteTypes {
     | '/crypto'
     | '/dcds'
     | '/etf'
+    | '/profile'
     | '/reports'
     | '/settings'
     | '/stock'
@@ -155,6 +165,7 @@ export interface FileRouteTypes {
     | '/crypto'
     | '/dcds'
     | '/etf'
+    | '/profile'
     | '/reports'
     | '/settings'
     | '/stock'
@@ -170,6 +181,7 @@ export interface FileRouteTypes {
     | '/_app/crypto'
     | '/_app/dcds'
     | '/_app/etf'
+    | '/_app/profile'
     | '/_app/reports'
     | '/_app/settings'
     | '/_app/stock'
@@ -242,6 +254,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppEtfRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/profile': {
+      id: '/_app/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof AppProfileRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/reports': {
       id: '/_app/reports'
       path: '/reports'
@@ -286,6 +305,7 @@ interface AppRouteChildren {
   AppCryptoRoute: typeof AppCryptoRoute
   AppDcdsRoute: typeof AppDcdsRoute
   AppEtfRoute: typeof AppEtfRoute
+  AppProfileRoute: typeof AppProfileRoute
   AppReportsRoute: typeof AppReportsRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppStockRoute: typeof AppStockRoute
@@ -299,6 +319,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCryptoRoute: AppCryptoRoute,
   AppDcdsRoute: AppDcdsRoute,
   AppEtfRoute: AppEtfRoute,
+  AppProfileRoute: AppProfileRoute,
   AppReportsRoute: AppReportsRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppStockRoute: AppStockRoute,

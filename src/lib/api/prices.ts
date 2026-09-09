@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { getSql } from "@/lib/db";
 import { replayPortfolio } from "@/engine/replay";
+import { todayVnYmd } from "@/engine/dates";
 import { n } from "./map";
 import { mapAccount, mapAsset, mapBank, mapBankRate, mapCapital, mapFee, mapMatch, mapTx } from "./map";
 import type { LedgerSnapshot } from "@/engine/types";
@@ -111,6 +112,53 @@ async function fetchVnStocks(symbols: string[]): Promise<Record<string, number>>
     return {};
   }
 }
+async function writeDailySnapshot(asOf: string) {
+  const sql = await getSql();
+  const ledger = await loadSnapshot();
+  for (const a of ledger.assets) {
+    if (a.currentPrice == null || a.currentPrice <= 0) continue;
+    await sql`
+      insert into price_snapshots (asset_id, as_of, price)
+      values (${a.id}, ${asOf}, ${a.currentPrice})
+      on conflict (asset_id, as_of) do update set price = excluded.price
+    `;
+  }
+  await sql`
+    insert into fx_snapshots (as_of, usd_vnd)
+    values (${asOf}, ${ledger.usdVnd})
+    on conflict (as_of) do update set usd_vnd = excluded.usd_vnd
+  `;
+}
+
+export async function ensureDailyPriceSnapshot(): Promise<void> {
+  const sql = await getSql();
+  const asOf = todayVnYmd();
+  const existing = await sql`select 1 from fx_snapshots where as_of = ${asOf} limit 1`;
+  if (existing.length > 0) return;
+
+  const ledger = await loadSnapshot();
+  const usd = await fetchUsdVnd();
+  if (usd && usd > 0) {
+    await sql`
+      insert into app_meta (key, value, updated_at) values ('usd_vnd', ${String(usd)}, now())
+      on conflict (key) do update set value = excluded.value, updated_at = now()
+    `;
+  }
+  const cryptoSyms = ledger.assets.filter((a) => a.assetType === "CRYPTO").map((a) => a.symbol);
+  const stockSyms = ledger.assets
+    .filter((a) => a.assetType === "STOCK" || a.assetType === "ETF")
+    .map((a) => a.symbol);
+  const [cryptoPx, stockPx] = await Promise.all([fetchCrypto(cryptoSyms), fetchVnStocks(stockSyms)]);
+  for (const a of ledger.assets) {
+    let px: number | undefined;
+    if (a.assetType === "CRYPTO") px = cryptoPx[a.symbol];
+    else if (a.assetType === "STOCK" || a.assetType === "ETF") px = stockPx[a.symbol];
+    if (px && px > 0) {
+      await sql`update assets set current_price = ${px}, price_updated_at = now() where id = ${a.id}`;
+    }
+  }
+  await writeDailySnapshot(asOf);
+}
 
 export const refreshMarketPrices = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
@@ -147,6 +195,7 @@ export const refreshMarketPrices = createServerFn({ method: "POST" })
       }
     }
     notes.push(`Đã cập nhật ${updated} mã`);
+    await writeDailySnapshot(todayVnYmd());
     const next = await loadSnapshot();
     return { ledger: next, state: replayPortfolio(next), notes };
   });
