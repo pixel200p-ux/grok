@@ -12,12 +12,12 @@ import {
   prevOccurrence,
   type CalendarEvent,
 } from "@/engine/calendar";
-import { formatViDate, remainingDays, todayYmd, ymd } from "@/engine/dates";
+import { formatViDate, remainingDays, toDate, todayYmd, ymd } from "@/engine/dates";
 import { deleteCalendarEvent, saveCalendarEvent } from "@/lib/api/calendar";
 import { useCalendar, useCalendarMutation } from "@/lib/use-calendar";
 import { cn } from "@/lib/utils";
 import { addDays, addMonths, format, getDay, startOfMonth, subMonths } from "date-fns";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
 
 const WEEK = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
@@ -36,10 +36,46 @@ export function CalendarPage() {
   const [cursor, setCursor] = useState(() => startOfMonth(new Date()));
   const [selected, setSelected] = useState(today);
   const [draft, setDraft] = useState<Draft | null>(null);
+
+  function goToDate(iso: string) {
+    setSelected(iso);
+    setCursor(startOfMonth(toDate(iso)));
+  }
+    const [jumpOpen, setJumpOpen] = useState(false);
+  const [jumpText, setJumpText] = useState("");
+
+  function parseJumpDate(raw: string): string | null {
+    const t = raw.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
+    const m = t.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2}|\d{4})$/);
+    if (!m) return null;
+    const dd = m[1].padStart(2, "0");
+    const mm = m[2].padStart(2, "0");
+    let year = m[3];
+    if (year.length === 2) {
+      const n = Number(year);
+      year = String(n >= 70 ? 1900 + n : 2000 + n);
+    }
+    const iso = `${year}-${mm}-${dd}`;
+    const d = new Date(`${iso}T00:00:00`);
+    if (Number.isNaN(d.getTime())) return null;
+    if (d.getFullYear() !== Number(year) || d.getMonth() + 1 !== Number(mm) || d.getDate() !== Number(dd)) {
+      return null;
+    }
+    return iso;
+  }
+
+  function applyJump() {
+    const iso = parseJumpDate(jumpText);
+    if (!iso) return;
+    goToDate(iso);
+    setJumpOpen(false);
+    setJumpText("");
+  }
   const saveMut = useCalendarMutation((d: Parameters<typeof saveCalendarEvent>[0]) => saveCalendarEvent(d));
   const delMut = useCalendarMutation((d: Parameters<typeof deleteCalendarEvent>[0]) => deleteCalendarEvent(d), "Đã xóa mốc");
 
-  const events = data ?? [];
+  const events = useMemo(() => data ?? [], [data]);
 
   const cells = useMemo(() => {
     const start = startOfMonth(cursor);
@@ -116,10 +152,28 @@ export function CalendarPage() {
             Nhập mốc · banner hiện từ 3 ngày trước đến đúng ngày, trên mọi trang
           </p>
         </div>
-        <Button onClick={() => openNew()} className="gap-1.5">
-          <Plus className="h-4 w-4" />
-          Thêm mốc
-        </Button>
+        {jumpOpen ? (
+          <Input
+            autoFocus
+            className="w-40"
+            placeholder="dd/mm/yyyy"
+            value={jumpText}
+            onChange={(e) => setJumpText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") applyJump();
+              if (e.key === "Escape") {
+                setJumpOpen(false);
+                setJumpText("");
+              }
+            }}
+            onBlur={applyJump}
+          />
+        ) : (
+          <Button type="button" variant="outline" className="gap-1.5" onClick={() => setJumpOpen(true)}>
+            <CalendarDays className="h-4 w-4" />
+            Đến ngày
+          </Button>
+        )}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
@@ -133,7 +187,13 @@ export function CalendarPage() {
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <p className="text-sm font-semibold tabular-nums">Tháng {monthLabel}</p>
+            <p
+              className="flex min-h-10 min-w-0 flex-1 cursor-default items-center justify-center text-sm font-semibold tabular-nums"
+              title="Nhấp đúp để về hôm nay"
+              onDoubleClick={() => goToDate(today)}
+            >
+              Tháng {monthLabel}
+            </p>
             <button
               type="button"
               className="grid h-10 w-10 place-items-center rounded-md hover:bg-muted"
@@ -200,15 +260,9 @@ export function CalendarPage() {
             <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
               {formatViDate(selected)}
             </p>
-            {onSelected.length === 0 ? (
-              <button
-                type="button"
-                onClick={() => openNew(selected)}
-                className="mt-2 text-sm text-primary hover:underline"
-              >
-                Thêm mốc ngày này
-              </button>
-            ) : (
+                      {onSelected.length === 0 ? (
+            <p className="mt-2 text-sm text-muted-foreground">Nhấp đúp ô ngày để thêm mốc</p>
+          ) : (
               <ul className="mt-2 space-y-2">
                 {onSelected.map((ev) => (
                   <li key={ev.id} className="flex items-start justify-between gap-2 text-sm">
@@ -242,9 +296,14 @@ export function CalendarPage() {
             <ul className="space-y-2 text-sm">
               {upcoming.length === 0 && <li className="text-muted-foreground">Chưa có mốc phía trước.</li>}
               {upcoming.map(({ ev, occur, days }) => (
-                <li key={ev.id} className="flex items-start justify-between gap-2 border-b border-border/70 pb-2 last:border-0">
-                  <div className="min-w-0">
-                    <p className="font-medium">{ev.title}</p>
+                        <li key={ev.id}>
+          <button
+            type="button"
+            onClick={() => goToDate(occur)}
+            className="flex w-full items-start justify-between gap-2 rounded-md border-b border-border/70 px-1 py-2 text-left last:border-0 hover:bg-muted/60"
+          >
+          <div className="min-w-0">
+            <p className="font-medium">{ev.title}</p>
                     <p className="text-xs text-muted-foreground">
                       {formatViDate(occur)}
                       {ev.yearly ? " · hàng năm" : ""}
@@ -253,7 +312,8 @@ export function CalendarPage() {
                   <Badge tone={days === 0 ? "warn" : days <= 3 ? "navy" : "muted"}>
                     {days === 0 ? "Hôm nay" : `Còn ${days} ngày`}
                   </Badge>
-                </li>
+          </button>
+        </li>
               ))}
             </ul>
           </Card>
@@ -292,12 +352,28 @@ export function CalendarPage() {
               </div>
               <div className="space-y-1">
                 <Label>Ngày</Label>
-                <Input
-                  type="date"
-                  value={draft.eventDate}
-                  onChange={(e) => setDraft({ ...draft, eventDate: e.target.value })}
-                  required
-                />
+                        {jumpOpen ? (
+          <Input
+            autoFocus
+            className="w-40"
+            placeholder="dd/mm/yyyy"
+            value={jumpText}
+            onChange={(e) => setJumpText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") applyJump();
+              if (e.key === "Escape") {
+                setJumpOpen(false);
+                setJumpText("");
+              }
+            }}
+            onBlur={applyJump}
+          />
+        ) : (
+          <Button type="button" variant="outline" className="gap-1.5" onClick={() => setJumpOpen(true)}>
+            <CalendarDays className="h-4 w-4" />
+            Đến ngày
+          </Button>
+        )}
               </div>
               <div className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
                 <div>

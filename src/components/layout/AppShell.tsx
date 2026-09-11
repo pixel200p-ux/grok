@@ -78,6 +78,7 @@ export function AppShell() {
   const theme = useUiStore((s) => s.theme);
   const currency = useUiStore((s) => s.currency);
   const toggleTheme = useUiStore((s) => s.toggleTheme);
+  const decor = useUiStore((s) => s.profileDecor);
   const toggleCurrency = useUiStore((s) => s.toggleCurrency);
   const qc = useQueryClient();
     const { data: portfolio } = usePortfolio();
@@ -187,11 +188,17 @@ export function AppShell() {
         />
       )}
             <aside
-        className={cn(
-          "fixed inset-y-0 left-0 z-40 flex w-60 flex-col bg-sidebar text-sidebar-foreground transition-transform md:translate-x-0",
-          mobile ? "translate-x-0" : "-translate-x-full",
-        )}
-      >
+      className={cn("........")}
+      style={{
+        width: `calc(15rem * ${1 - decor})`,
+        minWidth: 0,
+        overflow: "hidden",
+        opacity: 1 - decor,
+        transform: `translateX(${-12 * decor}%)`,
+        pointerEvents: decor > 0.35 ? "none" : "auto",
+        borderColor: decor > 0.7 ? "transparent" : undefined,
+      }}
+    >
         <div className="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-5">
           <Link to="/" onClick={() => setMobile(false)} className="flex min-w-0 items-center gap-2.5">
             <div className="grid h-12 w-12 place-items-center rounded-xl bg-white/10">
@@ -210,7 +217,14 @@ export function AppShell() {
       </aside>
 
       <div className="md:pl-60">
-                <header className="sticky top-0 z-50 flex flex-wrap items-center justify-between gap-2 border-b border-border bg-card/90 px-3 py-2 backdrop-blur md:px-6">
+        <header
+          className="sticky top-0 z-50 ........"
+          style={{
+            transform: `translateY(${-110 * decor}%)`,
+            opacity: 1 - decor,
+            pointerEvents: decor > 0.35 ? "none" : "auto",
+          }}
+        >
           <div className="flex items-center gap-2">
             <button
               className="grid h-10 w-10 place-items-center rounded-md hover:bg-muted md:hidden"

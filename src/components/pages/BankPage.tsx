@@ -30,7 +30,7 @@ export function BankPage() {
           <h1 className="text-4xl font-semibold">Bank</h1>
           <p className="text-sm text-muted-foreground">Nhiều sổ, nhiều ngân hàng. Gần đáo hạn lên trên.</p>
         </div>
-        <Button onClick={openBank}>Mở sổ</Button>
+        <Button onClick={() => openBank()}>Mở sổ</Button>
       </div>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] md:items-stretch">
         <NavOriginalCard

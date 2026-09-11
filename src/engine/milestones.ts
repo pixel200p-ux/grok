@@ -7,12 +7,16 @@ export const MILESTONE_STEP = 50_000_000;
 export type PriceSnap = { assetId: string; asOf: string; price: number };
 export type FxSnap = { asOf: string; usdVnd: number };
 
+export type MilestoneKind = "nav" | "orig" | "pnl" | "tplus";
+
 export type Milestone = {
   id: string;
   date: string;
   label: string;
   threshold: number;
   value: number;
+  kind: MilestoneKind;
+  bucket: CapitalBucket | "TOTAL";
 };
 
 function sliceLedger(ledger: LedgerSnapshot, d: string): LedgerSnapshot {
@@ -78,12 +82,32 @@ function seriesList(): Series[] {
   return out;
 }
 
+function seriesMeta(key: string): { kind: MilestoneKind; bucket: CapitalBucket | "TOTAL" } {
+  if (key === "tplus") return { kind: "tplus", bucket: "TOTAL" };
+  const [kind, bucket] = key.split(".") as [MilestoneKind, CapitalBucket | undefined];
+  return { kind, bucket: bucket ?? "TOTAL" };
+}
+
 export function computeMilestones(
   ledger: LedgerSnapshot,
   prices: PriceSnap[],
   fxRows: FxSnap[],
 ): Milestone[] {
-  const dates = [...new Set(prices.map((p) => p.asOf))].sort();
+  const dateSet = new Set<string>();
+  for (const p of prices) dateSet.add(p.asOf);
+  for (const f of fxRows) dateSet.add(f.asOf);
+  for (const t of ledger.transactions) {
+    if (!t.deletedAt) dateSet.add(t.txDate);
+  }
+  for (const c of ledger.capital) {
+    if (!c.deletedAt) dateSet.add(c.movementDate);
+  }
+  for (const b of ledger.banks) {
+    if (b.deletedAt) continue;
+    dateSet.add(b.startDate);
+    if (b.redeemedAt) dateSet.add(String(b.redeemedAt).slice(0, 10));
+  }
+  const dates = Array.from(dateSet).sort();
   if (dates.length === 0) return [];
 
   const series = seriesList();
@@ -92,6 +116,9 @@ export function computeMilestones(
 
   const out: Milestone[] = [];
   const runningPx: Record<string, number> = {};
+  for (const a of ledger.assets) {
+    if (a.currentPrice && a.currentPrice > 0) runningPx[a.id] = a.currentPrice;
+  }
   let runningFx = ledger.usdVnd;
 
   for (const d of dates) {
@@ -110,12 +137,15 @@ export function computeMilestones(
       while (reached[s.key] < maxLv) {
         reached[s.key] += 1;
         const threshold = reached[s.key] * MILESTONE_STEP;
+        const meta = seriesMeta(s.key);
         out.push({
           id: `${s.key}:${threshold}:${d}`,
           date: d,
           label: `${s.title} đạt ${threshold / 1_000_000}tr`,
           threshold,
           value: v,
+          kind: meta.kind,
+          bucket: meta.bucket,
         });
       }
     }

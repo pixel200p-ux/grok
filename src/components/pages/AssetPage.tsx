@@ -13,6 +13,7 @@ import { useUiStore } from "@/lib/ui-store";
 import type { AssetType, Transaction } from "@/engine/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { NavOriginalCard, PnlCard, TplusLoweredCard } from "@/components/NavOriginalCards";
+import { FilterMenu } from "@/components/FilterMenu";
 
 const TITLE: Record<AssetType, { title: string; sub: string }> = {
   DCDS: { title: "DCDS", sub: "Quỹ mở · số CCQ = tiền / giá, làm tròn 4 số" },
@@ -181,16 +182,17 @@ export function AssetPage({ assetType }: { assetType: AssetType }) {
           <p className="text-sm text-muted-foreground">{meta.sub}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {assetType === "STOCK" &&
-            (["ALL", "vps", "ssi"] as const).map((f) => (
-              <button
-                key={f}
-                onClick={() => setStockFilter(f)}
-                className={`min-h-10 rounded-md border px-3 text-xs ${stockFilter === f ? "border-primary bg-primary/10" : "border-border"}`}
-              >
-                {f === "ALL" ? "All" : f.toUpperCase()}
-              </button>
-            ))}
+          {assetType === "STOCK" && (
+              <FilterMenu
+                value={stockFilter}
+                onChange={setStockFilter}
+                options={[
+                  { id: "ALL", label: "All" },
+                  { id: "vps", label: "VPS" },
+                  { id: "ssi", label: "SSI" },
+                ]}
+              />
+            )}
           <Button onClick={() => openTx({ assetType, accountId: assetType === "STOCK" ? (stockFilter === "ssi" ? "ssi" : "vps") : undefined, txType: "BUY" })}>
             Buy
           </Button>

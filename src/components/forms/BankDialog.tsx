@@ -6,7 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { useUiStore } from "@/lib/ui-store";
 import { saveBank } from "@/lib/api/portfolio";
 import { usePortfolio, usePortfolioMutation } from "@/lib/use-portfolio";
-import { parseDecimal, parseVndAmount } from "@/engine/money";
+import { parseDecimal, parseVndAmount, formatThousandsInput } from "@/engine/money";
 import { todayYmd } from "@/engine/dates";
 import { useEffect, useState } from "react";
 
@@ -32,7 +32,7 @@ export function BankDialog() {
       const known = BANKS.includes(b.bankName);
       setBankName(known ? b.bankName : "Khác");
       setCustom(known ? "" : b.bankName);
-      setPrincipal(String(Math.round(b.principal)));
+      setPrincipal(formatThousandsInput(String(Math.round(b.principal))));
       setStartDate(b.startDate);
       setTerm(String(b.termMonths));
       setRate(String(b.interestRate));
@@ -103,7 +103,12 @@ export function BankDialog() {
           </div>
           <div className="space-y-1">
             <Label>Số tiền gửi (VND)</Label>
-            <Input value={principal} onChange={(e) => setPrincipal(e.target.value)} placeholder="100,000,000" required />
+            <Input
+              value={principal}
+              onChange={(e) => setPrincipal(formatThousandsInput(e.target.value))}
+              placeholder="100,000,000"
+              required
+            />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">

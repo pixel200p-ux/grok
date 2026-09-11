@@ -13,6 +13,7 @@ import { usePortfolio } from "@/lib/use-portfolio";
 import { useUiStore } from "@/lib/ui-store";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "@tanstack/react-router";
+import { FilterMenu } from "@/components/FilterMenu";
 
 const CAT_ORDER = ["DCDS", "ETF", "STOCK", "CRYPTO", "BANK"] as const;
 const CAT_LABEL: Record<string, string> = {
@@ -143,17 +144,15 @@ export function DashboardPage() {
             <CardDesc>VPS / SSI độc lập · T+ OPEN cộng vào SL</CardDesc>
           </div>
           <div className="flex gap-1">
-            {(["ALL", "vps", "ssi"] as const).map((f) => (
-              <button
-                key={f}
-                onClick={() => setStockFilter(f)}
-                className={`min-h-10 rounded-md border px-3 text-xs ${
-                  stockFilter === f ? "border-primary bg-primary/10" : "border-border"
-                }`}
-              >
-                {f === "ALL" ? "All" : f.toUpperCase()}
-              </button>
-            ))}
+              <FilterMenu
+              value={stockFilter}
+              onChange={setStockFilter}
+              options={[
+                { id: "ALL", label: "All" },
+                { id: "vps", label: "VPS" },
+                { id: "ssi", label: "SSI" },
+              ]}
+            />
           </div>
         </div>
         <HoldingsTable rows={holdings} usdVnd={usd} />
