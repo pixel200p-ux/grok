@@ -131,6 +131,7 @@ async function writeDailySnapshot(asOf: string) {
 }
 
 export async function ensureDailyPriceSnapshot(): Promise<void> {
+  try {
   const sql = await getSql();
   const asOf = todayVnYmd();
   const existing = await sql`select 1 from fx_snapshots where as_of = ${asOf} limit 1`;
@@ -158,6 +159,9 @@ export async function ensureDailyPriceSnapshot(): Promise<void> {
     }
   }
   await writeDailySnapshot(asOf);
+  } catch (err) {
+    console.error("[price snapshot]", err);
+  }
 }
 
 export const refreshMarketPrices = createServerFn({ method: "POST" })

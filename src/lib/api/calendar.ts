@@ -18,13 +18,18 @@ function mapEvent(r: Record<string, unknown>): CalendarEvent {
 export const fetchCalendar = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async (): Promise<CalendarEvent[]> => {
-    const sql = await getSql();
-    const rows = await sql`
-      select * from calendar_events
-      where deleted_at is null
-      order by event_date, created_at
-    `;
-    return rows.map(mapEvent);
+    try {
+      const sql = await getSql();
+      const rows = await sql`
+        select * from calendar_events
+        where deleted_at is null
+        order by event_date, created_at
+      `;
+      return rows.map(mapEvent);
+    } catch (err) {
+      console.error("[calendar]", err);
+      return [];
+    }
   });
 
 const saveSchema = z.object({
