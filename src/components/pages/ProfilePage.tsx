@@ -49,6 +49,9 @@ export function ProfilePage() {
   const avaRef = useRef<HTMLInputElement>(null);
   const coverBox = useRef<HTMLButtonElement>(null);
   const avaBox = useRef<HTMLButtonElement>(null);
+  const slotRef = useRef<HTMLDivElement>(null);
+  const avaSlot = useRef<HTMLDivElement>(null);
+  const [coverRest, setCoverRest] = useState({ t: 0, l: 0, w: 0, h: 0 });
   const origin = useRef<{ l: number; t: number } | null>(null);
   const decor = useUiStore((s) => s.profileDecor);
   const setDecor = useUiStore((s) => s.setProfileDecor);
@@ -57,7 +60,23 @@ export function ProfilePage() {
   const [editingName, setEditingName] = useState(false);
   const [kindFilter, setKindFilter] = useState("ALL");
 
-  const p = Math.max(0, Math.min(1, Number(decor) || 0));
+  const target = Math.max(0, Math.min(1, Number(decor) || 0));
+  const [p, setP] = useState(0);
+  const pRef = useRef(0);
+
+  useEffect(() => {
+    let raf = 0;
+    const k = 0.5;
+    function tick() {
+      const cur = pRef.current;
+      const next = Math.abs(target - cur) < 0.002 ? target : cur + (target - cur) * k;
+      pRef.current = next;
+      setP(next);
+      if (next !== target) raf = requestAnimationFrame(tick);
+    }
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target]);
 
   useEffect(() => {
     function r() {
@@ -67,6 +86,24 @@ export function ProfilePage() {
     window.addEventListener("resize", r);
     return () => window.removeEventListener("resize", r);
   }, []);
+
+  useEffect(() => {
+    function measure() {
+      const slot = slotRef.current;
+      if (slot) {
+        const r = slot.getBoundingClientRect();
+        setCoverRest({ t: r.top, l: r.left, w: r.width, h: r.height });
+      }
+      const g = avaSlot.current;
+      if (g) {
+        const r = g.getBoundingClientRect();
+        origin.current = { l: r.left, t: r.top };
+      }
+    }
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [profile, p]);
 
   useEffect(() => {
     return () => setDecor(0);
@@ -91,13 +128,25 @@ export function ProfilePage() {
       const r = avaBox.current.getBoundingClientRect();
       origin.current = { l: r.left, t: r.top };
     }
+    let wheelLock = false;
     function onWheel(e: WheelEvent) {
       const cur = Math.max(0, Math.min(1, Number(useUiStore.getState().profileDecor) || 0));
       const goingUp = e.deltaY < 0;
       if (cur <= 0 && (!atTop() || !goingUp)) return;
       if (cur <= 0 && goingUp) capture();
       e.preventDefault();
-      const next = Math.max(0, Math.min(1, cur - e.deltaY / 900));
+      const mag = Math.abs(e.deltaY);
+      let next = cur;
+      if (mag >= 40) {
+        if (wheelLock) return;
+        wheelLock = true;
+        window.setTimeout(() => {
+          wheelLock = false;
+        }, 380);
+        next = Math.max(0, Math.min(1, cur + (goingUp ? 1 / 0.8 : -1 / 0.8)));
+      } else {
+        next = Math.max(0, Math.min(1, cur - e.deltaY / 160));
+      }
       if (next <= 0) origin.current = null;
       setDecor(next);
     }
@@ -113,7 +162,7 @@ export function ProfilePage() {
       if (cur <= 0 && (!atTop() || dy <= 0)) return;
       if (cur <= 0 && dy > 0) capture();
       e.preventDefault();
-      const next = Math.max(0, Math.min(1, cur + dy / 500));
+      const next = Math.max(0, Math.min(1, cur + dy / 140));
       if (next <= 0) origin.current = null;
       setDecor(next);
     }
@@ -184,10 +233,10 @@ export function ProfilePage() {
   if (isPending || !profile) return <Skeleton className="h-96" />;
 
   const name = nameDraft ?? profile.displayName;
-  const startSize = 112;
-  const endSize = vp.w / 8;
+  const startSize = 168;
+  const endSize = (vp.w / 8) * 1.5;
   const size = startSize + (endSize - startSize) * p;
-  const barH = vp.h / 8;
+  const barH = vp.h / 5;
   const endTop = vp.h - barH - size / 2;
   const endLeft = 20;
   const from = origin.current ?? { l: 20, t: endTop };
@@ -197,16 +246,21 @@ export function ProfilePage() {
   const coverH = vp.h * (0.33 + 0.545 * p);
 
   return (
-    <div className="-mx-3 -mt-3 md:-mx-6 md:-mt-6">
+    <>
+      <div ref={slotRef} className="h-[33dvh] min-h-45 w-full" aria-hidden />
       <button
         ref={coverBox}
         type="button"
         onDoubleClick={() => coverRef.current?.click()}
-        className={cn(
-          "overflow-hidden bg-[#4a5d4e]",
-          p > 0 ? "fixed top-0 right-0 left-0 z-[60]" : "relative block h-[33dvh] min-h-45 w-full",
-        )}
-        style={p > 0 ? { height: coverH } : undefined}
+        className="overflow-hidden bg-[#4a5d4e]"
+        style={{
+          position: "fixed",
+          zIndex: 60,
+          top: (coverRest.t || 0) * (1 - p),
+          left: (coverRest.l || 0) * (1 - p),
+          width: (coverRest.w || vp.w) + (vp.w - (coverRest.w || vp.w)) * p,
+          height: (coverRest.h || vp.h * 0.33) + (coverH - (coverRest.h || vp.h * 0.33)) * p,
+        }}
         title="Nhấp đúp để đổi ảnh nền"
       >
         {profile.coverData ? (
@@ -215,15 +269,12 @@ export function ProfilePage() {
           <div className="grid h-full place-items-center text-sm text-white/80">Nhấp đúp để chọn ảnh nền</div>
         )}
       </button>
-      {p > 0 && (
-        <div
-          className="pointer-events-none fixed bottom-0 left-0 right-0 z-[65]"
-          style={{
-            height: barH * p,
-            background: "color-mix(in oklab, var(--app-bg) 92%, black)",
-          }}
-        />
-      )}
+      <div
+        className="h-[33dvh] min-h-45 w-full"
+        style={{ display: p > 0.01 ? "block" : "none" }}
+        aria-hidden
+      />
+
       <input
         ref={coverRef}
         type="file"
@@ -239,16 +290,24 @@ export function ProfilePage() {
       />
 
       <div className="relative z-[70] px-3 md:px-6">
-        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-end sm:gap-4">
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-start sm:gap-4">
+          <div
+            ref={avaSlot}
+            className="relative -mt-[84px] h-[168px] w-[168px] shrink-0"
+            aria-hidden
+          />
           <button
             ref={avaBox}
             type="button"
             onDoubleClick={() => avaRef.current?.click()}
-            className={cn(
-              "shrink-0 overflow-hidden rounded-full border-4 border-background bg-muted shadow-md",
-              p > 0 ? "fixed z-[80]" : "relative -mt-14 h-28 w-28",
-            )}
-            style={p > 0 ? { left: avLeft, top: avTop, width: size, height: size, pointerEvents: "auto" } : undefined}
+            className="fixed z-[80] overflow-hidden rounded-full border-4 border-background bg-muted shadow-md"
+            style={{
+              left: avLeft,
+              top: avTop,
+              width: size,
+              height: size,
+              pointerEvents: "auto",
+            }}
             title="Nhấp đúp để đổi avatar"
           >
             {profile.avatarData ? (
@@ -274,18 +333,13 @@ export function ProfilePage() {
           />
           <div
             className="min-w-0 flex-1 pb-1"
-            style={
-              p > 0
-                ? {
-                    position: "fixed",
-                    zIndex: 80,
-                    left: avLeft + size + 16,
-                    top: avTop + size / 2,
-                    transform: "translateY(-50%)",
-                    pointerEvents: "auto",
-                  }
-                : undefined
-            }
+            style={{
+              position: "fixed",
+              zIndex: 80,
+              left: avLeft + size + 16,
+              top: avTop + size / 2 + 8,
+              pointerEvents: "auto",
+            }}
           >
             {editingName ? (
               <form
@@ -337,10 +391,9 @@ export function ProfilePage() {
         <div
           className="mt-6 grid gap-4 lg:grid-cols-3"
           style={{
-            opacity: 1 - p,
-            transform: `translateY(${p * 28}px)`,
-            pointerEvents: p > 0.2 ? "none" : "auto",
-            visibility: p > 0.92 ? "hidden" : "visible",
+            opacity: Math.max(0, 1 - p),
+            transform: `translateY(${p * 110}vh)`,
+            pointerEvents: p > 0.08 ? "none" : "auto",
           }}
         >
           <Card className="min-h-64">
@@ -418,6 +471,6 @@ export function ProfilePage() {
           </Card>
         </div>
       </div>
-    </div>
+    </>
   );
 }

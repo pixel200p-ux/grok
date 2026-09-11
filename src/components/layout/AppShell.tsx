@@ -18,7 +18,7 @@ import {
   Wallet,
   X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { RedirectToSignIn } from "@/lib/auth/gates";
 import { signOut } from "@/lib/auth/client";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
@@ -78,7 +78,9 @@ export function AppShell() {
   const theme = useUiStore((s) => s.theme);
   const currency = useUiStore((s) => s.currency);
   const toggleTheme = useUiStore((s) => s.toggleTheme);
-  const decor = useUiStore((s) => s.profileDecor);
+  const decorRaw = useUiStore((s) => s.profileDecor);
+  const decor =
+    pathname.startsWith("/profile") ? Math.max(0, Math.min(1, Number(decorRaw) || 0)) : 0;
   const toggleCurrency = useUiStore((s) => s.toggleCurrency);
   const qc = useQueryClient();
     const { data: portfolio } = usePortfolio();
@@ -95,6 +97,11 @@ export function AppShell() {
     lastPriceAt != null && Date.now() - new Date(lastPriceAt).getTime() > 24 * 60 * 60 * 1000;
   const [refreshing, setRefreshing] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  useEffect(() => {
+    if (!pathname.startsWith("/profile")) {
+      useUiStore.getState().setProfileDecor(0);
+    }
+  }, [pathname]);
 
   if (isPending) {
     return <LoginScreen />;
@@ -187,17 +194,24 @@ export function AppShell() {
           aria-label="Đóng menu"
         />
       )}
-            <aside
-      className={cn("........")}
-      style={{
-        width: `calc(15rem * ${1 - decor})`,
-        minWidth: 0,
-        overflow: "hidden",
-        opacity: 1 - decor,
-        transform: `translateX(${-12 * decor}%)`,
-        pointerEvents: decor > 0.35 ? "none" : "auto",
-        borderColor: decor > 0.7 ? "transparent" : undefined,
-      }}
+        <aside
+      className={cn(
+        "fixed inset-y-0 left-0 z-40 flex w-60 flex-col border-r border-white/10 bg-sidebar text-sidebar-foreground transition-[width,opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]",
+        mobile ? "translate-x-0 shadow-2xl" : "max-md:-translate-x-full",
+      )}
+      style={
+        decor > 0.01
+          ? {
+              width: `calc(15rem * ${1 - decor})`,
+              minWidth: 0,
+              overflow: "hidden",
+              opacity: 1 - decor,
+              transform: `translateX(${-12 * decor}%)`,
+              pointerEvents: decor > 0.35 ? "none" : "auto",
+              borderColor: decor > 0.7 ? "transparent" : undefined,
+            }
+          : undefined
+      }
     >
         <div className="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-5">
           <Link to="/" onClick={() => setMobile(false)} className="flex min-w-0 items-center gap-2.5">
@@ -217,14 +231,41 @@ export function AppShell() {
       </aside>
 
       <div className="md:pl-60">
-        <header
-          className="sticky top-0 z-50 ........"
-          style={{
-            transform: `translateY(${-110 * decor}%)`,
-            opacity: 1 - decor,
-            pointerEvents: decor > 0.35 ? "none" : "auto",
-          }}
-        >
+            {pathname.startsWith("/profile") ? (
+        <div className="pointer-events-none fixed top-0 right-0 z-[90] md:left-60">
+          <div className="ml-auto flex h-14 w-fit items-center gap-1 px-3 pointer-events-auto sm:gap-2 md:px-6">
+            <button
+              className="grid h-10 w-10 place-items-center rounded-md bg-background/70 hover:bg-muted md:hidden"
+              onClick={() => setMobile(true)}
+              aria-label="Menu"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            <div className="mr-1 hidden min-w-0 flex-col items-end leading-tight sm:flex">
+              <span className={cn("max-w-[11rem] truncate text-[11px]", stale || !lastPriceAt ? "text-warn" : "text-muted-foreground")}>
+                {formatPriceAgo(lastPriceAt)}
+              </span>
+              {!lastPriceAt && (
+                <span className="text-[10px] text-muted-foreground">Đang dùng giá vốn</span>
+              )}
+            </div>
+            <Button size="sm" variant="outline" onClick={onRefresh} disabled={refreshing} className="gap-1.5 bg-background/80">
+              <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
+              <span className="hidden sm:inline">{refreshing ? "Đang cập nhật..." : "Cập nhật giá"}</span>
+            </Button>
+            <Button size="sm" variant="outline" onClick={toggleCurrency} title="Chuyển VND / USD" className="bg-background/80">
+              <span className={currency === "VND" ? "font-semibold" : "text-muted-foreground"}>VND</span>
+              <span className="text-muted-foreground">/</span>
+              <span className={currency === "USD" ? "font-semibold" : "text-muted-foreground"}>USD</span>
+            </Button>
+            <NotifyBell />
+            <Button size="icon" variant="outline" onClick={toggleTheme} title="Theme" className="bg-background/80">
+              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <header className="sticky top-0 z-50 flex h-14 items-center justify-between gap-2 border-b bg-background/90 px-3 backdrop-blur md:px-6">
           <div className="flex items-center gap-2">
             <button
               className="grid h-10 w-10 place-items-center rounded-md hover:bg-muted md:hidden"
@@ -236,18 +277,18 @@ export function AppShell() {
             <span className="hidden text-sm font-semibold sm:inline">Portfolio Manager</span>
           </div>
           <div className="flex items-center gap-1 sm:gap-2">
-                <div className="mr-1 hidden min-w-0 flex-col items-end leading-tight sm:flex">
-      <span className={cn("max-w-[11rem] truncate text-[11px]", stale || !lastPriceAt ? "text-warn" : "text-muted-foreground")}>
-        {formatPriceAgo(lastPriceAt)}
-      </span>
-      {!lastPriceAt && (
-        <span className="text-[10px] text-muted-foreground">Đang dùng giá vốn</span>
-      )}
-    </div>
-    <Button size="sm" variant="outline" onClick={onRefresh} disabled={refreshing} className="gap-1.5">
-      <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
-      <span className="hidden sm:inline">{refreshing ? "Đang cập nhật..." : "Cập nhật giá"}</span>
-    </Button>
+            <div className="mr-1 hidden min-w-0 flex-col items-end leading-tight sm:flex">
+              <span className={cn("max-w-[11rem] truncate text-[11px]", stale || !lastPriceAt ? "text-warn" : "text-muted-foreground")}>
+                {formatPriceAgo(lastPriceAt)}
+              </span>
+              {!lastPriceAt && (
+                <span className="text-[10px] text-muted-foreground">Đang dùng giá vốn</span>
+              )}
+            </div>
+            <Button size="sm" variant="outline" onClick={onRefresh} disabled={refreshing} className="gap-1.5">
+              <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
+              <span className="hidden sm:inline">{refreshing ? "Đang cập nhật..." : "Cập nhật giá"}</span>
+            </Button>
             <Button size="sm" variant="outline" onClick={toggleCurrency} title="Chuyển VND / USD">
               <span className={currency === "VND" ? "font-semibold" : "text-muted-foreground"}>VND</span>
               <span className="text-muted-foreground">/</span>
@@ -258,7 +299,8 @@ export function AppShell() {
               {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
           </div>
-                         </header>
+        </header>
+      )}
         <main className="min-w-0 overflow-x-hidden p-3 pb-4 md:p-6">
           <Outlet />
         </main>
