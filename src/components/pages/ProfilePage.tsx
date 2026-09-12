@@ -247,20 +247,20 @@ export function ProfilePage() {
 
   return (
     <>
-      <div ref={slotRef} className="h-[33dvh] min-h-[33dvh] w-full" aria-hidden />
+      <div ref={slotRef} className="h-[33dvh] min-h-45 w-full" aria-hidden />
       <button
         ref={coverBox}
         type="button"
         onDoubleClick={() => coverRef.current?.click()}
         className="overflow-hidden bg-[#4a5d4e]"
-              style={{
-        position: "fixed",
-        zIndex: 60,
-        top: (coverRest.t || 0) * (1 - p),
-        left: coverRest.l || 0,
-        width: coverRest.w || vp.w,
-        height: vp.h / 3 + (coverH - vp.h / 3) * p,
-      }}
+        style={{
+          position: "fixed",
+          zIndex: 60,
+          top: (coverRest.t || 0) * (1 - p),
+          left: (coverRest.l || 0) * (1 - p),
+          width: (coverRest.w || vp.w) + (vp.w - (coverRest.w || vp.w)) * p,
+          height: (coverRest.h || vp.h * 0.33) + (coverH - (coverRest.h || vp.h * 0.33)) * p,
+        }}
         title="Nhấp đúp để đổi ảnh nền"
       >
         {profile.coverData ? (
