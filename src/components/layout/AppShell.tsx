@@ -232,8 +232,17 @@ export function AppShell() {
 
       <div className="md:pl-60">
             {pathname.startsWith("/profile") ? (
-        <div className="pointer-events-none fixed top-0 right-0 z-[90] md:left-60">
-          <div className="ml-auto flex h-14 w-fit items-center gap-1 px-3 pointer-events-auto sm:gap-2 md:px-6">
+        <div
+          className="pointer-events-none fixed top-0 right-0 z-[90] md:left-60"
+          style={{
+            transform: `translateY(${-120 * decor}%)`,
+            opacity: 1 - decor,
+          }}
+        >
+          <div
+            className="ml-auto flex h-14 w-fit items-center gap-1 px-3 sm:gap-2 md:px-6"
+            style={{ pointerEvents: decor > 0.2 ? "none" : "auto" }}
+          >
             <button
               className="grid h-10 w-10 place-items-center rounded-md bg-background/70 hover:bg-muted md:hidden"
               onClick={() => setMobile(true)}
