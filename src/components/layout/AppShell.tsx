@@ -312,7 +312,14 @@ export function AppShell() {
           </header>
         )}
 
-        <main className="min-w-0 overflow-x-hidden p-3 pb-4 md:p-6">
+        <main
+          className={cn(
+            "min-w-0",
+            pathname.startsWith("/profile")
+              ? "h-dvh max-h-dvh overflow-hidden p-0"
+              : "overflow-x-hidden p-3 pb-4 md:p-6",
+          )}
+        >
           <Outlet />
         </main>
         <NotificationFooter />

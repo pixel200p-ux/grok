@@ -23,10 +23,7 @@ function readImage(file: File, maxEdge: number): Promise<string> {
       canvas.width = w;
       canvas.height = h;
       const ctx = canvas.getContext("2d");
-      if (!ctx) {
-        reject(new Error("canvas"));
-        return;
-      }
+      if (!ctx) return reject(new Error("canvas"));
       ctx.drawImage(img, 0, 0, w, h);
       resolve(canvas.toDataURL("image/jpeg", 0.92));
     };
@@ -59,16 +56,10 @@ export function ProfilePage() {
   const target = Math.max(0, Math.min(1, Number(decor) || 0));
   const pRef = useRef(0);
 
-  // 1. ENGINE ANIMATION DIRECT DOM (BỎ RE-RENDER STATE ĐỂ CHẠY MƯỢT NHƯ THANH THÔNG BÁO)
+  // 1. ENGINE ANIMATION DIRECT DOM (Chỉ ghi đè CSS Variable qua direct ref)
   useEffect(() => {
     let raf = 0;
-    const k = 0.2; // Độ nhạy nội suy (Lerp factor)
-
-    function applyStyles(p: number) {
-      if (!containerRef.current) return;
-      // Ghi trực tiếp giá trị p (từ 0 đến 1) vào CSS custom property của container
-      containerRef.current.style.setProperty("--p", p.toFixed(4));
-    }
+    const k = 0.16;
 
     function tick() {
       const cur = pRef.current;
@@ -76,13 +67,13 @@ export function ProfilePage() {
 
       if (Math.abs(diff) < 0.0005) {
         pRef.current = target;
-        applyStyles(target);
+        containerRef.current?.style.setProperty("--p", target.toFixed(4));
         return;
       }
 
       const next = cur + diff * k;
       pRef.current = next;
-      applyStyles(next);
+      containerRef.current?.style.setProperty("--p", next.toFixed(4));
       raf = requestAnimationFrame(tick);
     }
 
@@ -90,25 +81,24 @@ export function ProfilePage() {
     return () => cancelAnimationFrame(raf);
   }, [target]);
 
-  // 2. XỬ LÝ SỰ KIỆN SCROLL & TOUCH
+  // 2. XỬ LÝ GESTURE MƯỢT CHO CẢ TRACKPAD VÀ CHUỘT
   useEffect(() => {
-    let wheelLock = false;
+    function isInsideCardScroll(el: EventTarget | null): boolean {
+      if (!(el instanceof Element)) return false;
+      return Boolean(el.closest("[data-profile-scroll]"));
+    }
+
     function onWheel(e: WheelEvent) {
+      if (isInsideCardScroll(e.target)) return;
+
       const cur = Math.max(0, Math.min(1, Number(useUiStore.getState().profileDecor) || 0));
       const goingUp = e.deltaY < 0;
       if (cur <= 0 && !goingUp) return;
 
       e.preventDefault();
-      const mag = Math.abs(e.deltaY);
-      let next = cur;
-      if (mag >= 40) {
-        if (wheelLock) return;
-        wheelLock = true;
-        window.setTimeout(() => { wheelLock = false; }, 300);
-        next = Math.max(0, Math.min(1, cur + (goingUp ? 1 : -1)));
-      } else {
-        next = Math.max(0, Math.min(1, cur - e.deltaY / 150));
-      }
+      // Chuẩn hóa deltaY cho cả Trackpad lẫn Mouse Wheel
+      const step = Math.sign(e.deltaY) * Math.min(Math.abs(e.deltaY) * 0.0025, 0.15);
+      const next = Math.max(0, Math.min(1, cur + step));
       setDecor(next);
     }
 
@@ -117,6 +107,8 @@ export function ProfilePage() {
       startY = e.touches[0]?.clientY ?? 0;
     }
     function onTouchMove(e: TouchEvent) {
+      if (isInsideCardScroll(e.target)) return;
+
       const y = e.touches[0]?.clientY ?? 0;
       const dy = startY - y;
       startY = y;
@@ -124,7 +116,7 @@ export function ProfilePage() {
       if (cur <= 0 && dy <= 0) return;
 
       e.preventDefault();
-      const next = Math.max(0, Math.min(1, cur + dy / 120));
+      const next = Math.max(0, Math.min(1, cur + dy / 250));
       setDecor(next);
     }
 
@@ -203,49 +195,20 @@ export function ProfilePage() {
   return (
     <div 
       ref={containerRef} 
-      className="relative h-full w-full flex flex-col bg-background select-none overflow-hidden"
-      style={{ "--p": 0 } as React.CSSProperties}
+      className="relative h-dvh max-h-dvh w-full flex flex-col bg-background select-none overflow-hidden"
+      style={{
+        "--p": 0,
+        // Dùng clip-path inset để mở rộng/thu hẹp Cover mà KHÔNG gây Reflow
+        "--cover-clip": "calc((1 - var(--p)) * 67vh)",
+      } as React.CSSProperties}
     >
-      {/* 
-        TÍNH TOÁN KÍCH THƯỚC TRỰC TIẾP TRÊN CSS (CALC + CSS VARS)
-        Giúp GPU xử lý mượt mà 60-120fps, không gây lag JS main thread
-      */}
-      <style>{`
-        .cover-layer {
-          height: calc(33vh + (87.5vh - 33vh) * var(--p));
-          position: calc(var(--p) > 0.01 ? fixed : relative);
-          top: 0;
-          left: 0;
-          right: 0;
-          width: calc(var(--p) > 0.01 ? 100vw : 100%);
-          z-index: calc(var(--p) > 0.01 ? 100 : 0);
-        }
-        .bottom-backdrop {
-          opacity: var(--p);
-          width: calc(var(--p) > 0.01 ? 100vw : 100%);
-          z-index: calc(var(--p) > 0.01 ? 101 : 0);
-        }
-        .profile-hero-info {
-          position: calc(var(--p) > 0.01 ? fixed : relative);
-          top: calc(var(--p) > 0.01 ? calc(87.5vh - 90px) : auto);
-          left: calc(var(--p) > 0.01 ? 3rem : auto);
-          z-index: calc(var(--p) > 0.01 ? 102 : 20);
-        }
-        .hero-scale-box {
-          transform: scale(calc(1 + var(--p) * 0.45));
-          transform-origin: bottom left;
-          will-change: transform;
-        }
-        .cards-grid {
-          opacity: calc(1 - var(--p) * 2.5);
-          transform: translate3d(0, calc(var(--p) * 60px), 0);
-          pointer-events: calc(var(--p) > 0.05 ? none : auto);
-        }
-      `}</style>
-      
-      {/* 1. KHUNG ẢNH NỀN FULL VIEWPORT */}
+      {/* 1. COVER LAYER: Cố định 100vh, cắt chiều cao bằng clip-path (GPU-accelerated) */}
       <div 
-        className="cover-layer w-full shrink-0 overflow-hidden bg-[#4a5d4e] transform-gpu transition-none"
+        className="fixed inset-0 w-full h-full bg-[#4a5d4e] will-change-transform"
+        style={{
+          clipPath: "inset(0 0 var(--cover-clip) 0)",
+          zIndex: "calc(10 + Math.round(var(--p) * 90))",
+        }}
         onDoubleClick={() => coverRef.current?.click()}
       >
         {profile.coverData ? (
@@ -261,18 +224,54 @@ export function ProfilePage() {
         )}
       </div>
 
-      {/* 2. ĐÁY NỀN 1/8 MÀN HÌNH (Đặt Z-index thấp hơn Avatar/Tên) */}
-      <div
-        className="bottom-backdrop fixed bottom-0 left-0 right-0 bg-background pointer-events-none h-[12.5vh] transform-gpu transition-none"
+      <div className="h-[33vh] w-full shrink-0 pointer-events-none" aria-hidden />
+
+      {/* INPUTS */}
+      <input
+        ref={coverRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={async (e) => {
+          const f = e.target.files?.[0];
+          e.target.value = "";
+          if (!f) return;
+          const coverData = await readImage(f, 1920);
+          save.mutate({ data: { coverData } });
+        }}
+      />
+      <input
+        ref={avaRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={async (e) => {
+          const f = e.target.files?.[0];
+          e.target.value = "";
+          if (!f) return;
+          const avatarData = await readImage(f, 512);
+          save.mutate({ data: { avatarData } });
+        }}
       />
 
-      {/* 3. KHỐI NỘI DUNG PROFILE */}
+      {/* BACKDROP ĐÁY */}
+      <div
+        className="fixed left-0 right-0 bottom-0 w-full h-[12.5vh] bg-background pointer-events-none z-[101]"
+        style={{ opacity: "var(--p)" }}
+      />
+
+      {/* 2. PROFILE HERO INFO */}
       <div className="relative flex-1 flex flex-col px-4 md:px-8 pb-4 min-h-0">
-        
-        {/* Avatar + Tên (Z-Index cao nhất - 102) */}
-        <div className="profile-hero-info flex flex-col sm:flex-row items-start sm:items-end gap-4 shrink-0 transition-none -mt-16 sm:-mt-20">
-          <div className="hero-scale-box flex flex-col sm:flex-row items-start sm:items-end gap-4">
-            
+        <div className="h-[5.5rem] w-full shrink-0 pointer-events-none" aria-hidden />
+
+        <div className="fixed z-[110] top-[calc(33vh-4.5rem)] left-4 md:left-[16.5rem] flex flex-col sm:flex-row items-start sm:items-end gap-4 shrink-0 pointer-events-none">
+          <div 
+            className="flex flex-col sm:flex-row items-start sm:items-end gap-4 pointer-events-auto will-change-transform"
+            style={{
+              transform: `translate3d(calc(var(--p) * -12.5rem), calc(var(--p) * (52vh - 6rem)), 0) scale(calc(1 + var(--p) * 1.2))`,
+              transformOrigin: "top left",
+            }}
+          >
             {/* Avatar */}
             <div className="relative shrink-0 w-28 h-28 sm:w-32 sm:h-32">
               <button
@@ -291,7 +290,7 @@ export function ProfilePage() {
               </button>
             </div>
 
-            {/* Dòng Tên */}
+            {/* Display Name */}
             <div className="min-w-0 flex-1 pb-1">
               {editingName ? (
                 <form
@@ -336,15 +335,22 @@ export function ProfilePage() {
           </div>
         </div>
 
-        {/* 4. CHỨA 3 CARD */}
-        <div className="cards-grid mt-4 flex-1 min-h-0 grid gap-4 grid-cols-1 lg:grid-cols-3 transform-gpu transition-none">
+        {/* 3. CARDS GRID */}
+        <div 
+          className="mt-4 flex-1 min-h-0 grid gap-4 grid-cols-1 lg:grid-cols-3 will-change-transform"
+          style={{
+            opacity: "calc(1 - var(--p) * 2.5)",
+            transform: "translate3d(0, calc(var(--p) * 60px), 0)",
+            pointerEvents: "calc(var(--p) > 0.05 ? 'none' : 'auto')" as any,
+          }}
+        >
           {/* Card 1: Thống kê */}
           <Card className="flex flex-col h-full min-h-0 overflow-hidden p-5">
             <div className="shrink-0">
               <CardTitle>Thống kê lệnh</CardTitle>
               <CardDesc className="mb-3">Không tính lệnh đã xóa</CardDesc>
             </div>
-            <div className="flex-1 overflow-y-auto pr-1 space-y-3">
+            <div data-profile-scroll className="flex-1 overflow-y-auto pr-1 space-y-3">
               <div className="grid grid-cols-2 gap-2">
                 <div className="rounded-lg bg-background/70 px-3 py-2">
                   <p className="text-[11px] text-muted-foreground">Đang mở</p>
@@ -396,7 +402,7 @@ export function ProfilePage() {
               <CardDesc className="mt-1">Ngày đầu tiên cán mốc · mới nhất trên cùng</CardDesc>
             </div>
 
-            <div className="flex-1 min-h-0 overflow-y-auto pr-1 mt-2">
+            <div data-profile-scroll className="flex-1 min-h-0 overflow-y-auto pr-1 mt-2">
               {marksPending && <p className="text-sm text-muted-foreground">Đang tính mốc…</p>}
               {!marksPending && timeline.length === 0 && (
                 <p className="text-sm text-muted-foreground">
