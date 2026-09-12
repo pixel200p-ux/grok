@@ -6,7 +6,6 @@ import { displayMoney } from "@/lib/display";
 import { useMilestones, useProfile, useSaveProfile } from "@/lib/use-profile";
 import { usePortfolio } from "@/lib/use-portfolio";
 import { UserRound } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FilterMenu } from "@/components/FilterMenu";
 import { useUiStore } from "@/lib/ui-store";
@@ -45,111 +44,74 @@ export function ProfilePage() {
   const { data: portfolio } = usePortfolio();
   const save = useSaveProfile();
   const usd = portfolio?.state.usdVnd ?? 25000;
+
+  const containerRef = useRef<HTMLDivElement>(null);
   const coverRef = useRef<HTMLInputElement>(null);
   const avaRef = useRef<HTMLInputElement>(null);
-  const coverBox = useRef<HTMLButtonElement>(null);
-  const avaBox = useRef<HTMLButtonElement>(null);
-  const slotRef = useRef<HTMLDivElement>(null);
-  const avaSlot = useRef<HTMLDivElement>(null);
-  const [coverRest, setCoverRest] = useState({ t: 0, l: 0, w: 0, h: 0 });
-  const origin = useRef<{ l: number; t: number } | null>(null);
+
   const decor = useUiStore((s) => s.profileDecor);
   const setDecor = useUiStore((s) => s.setProfileDecor);
-  const [vp, setVp] = useState({ w: 1280, h: 800 });
+
   const [nameDraft, setNameDraft] = useState<string | null>(null);
   const [editingName, setEditingName] = useState(false);
   const [kindFilter, setKindFilter] = useState("ALL");
 
   const target = Math.max(0, Math.min(1, Number(decor) || 0));
-  const [p, setP] = useState(0);
   const pRef = useRef(0);
 
+  // 1. ENGINE ANIMATION DIRECT DOM (BỎ RE-RENDER STATE ĐỂ CHẠY MƯỢT NHƯ THANH THÔNG BÁO)
   useEffect(() => {
     let raf = 0;
-    const k = 0.5;
+    const k = 0.2; // Độ nhạy nội suy (Lerp factor)
+
+    function applyStyles(p: number) {
+      if (!containerRef.current) return;
+      // Ghi trực tiếp giá trị p (từ 0 đến 1) vào CSS custom property của container
+      containerRef.current.style.setProperty("--p", p.toFixed(4));
+    }
+
     function tick() {
       const cur = pRef.current;
-      const next = Math.abs(target - cur) < 0.002 ? target : cur + (target - cur) * k;
+      const diff = target - cur;
+
+      if (Math.abs(diff) < 0.0005) {
+        pRef.current = target;
+        applyStyles(target);
+        return;
+      }
+
+      const next = cur + diff * k;
       pRef.current = next;
-      setP(next);
-      if (next !== target) raf = requestAnimationFrame(tick);
+      applyStyles(next);
+      raf = requestAnimationFrame(tick);
     }
+
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [target]);
 
+  // 2. XỬ LÝ SỰ KIỆN SCROLL & TOUCH
   useEffect(() => {
-    function r() {
-      setVp({ w: window.innerWidth, h: window.innerHeight });
-    }
-    r();
-    window.addEventListener("resize", r);
-    return () => window.removeEventListener("resize", r);
-  }, []);
-
-  useEffect(() => {
-    function measure() {
-      const slot = slotRef.current;
-      if (slot) {
-        const r = slot.getBoundingClientRect();
-        setCoverRest({ t: r.top, l: r.left, w: r.width, h: r.height });
-      }
-      const g = avaSlot.current;
-      if (g) {
-        const r = g.getBoundingClientRect();
-        origin.current = { l: r.left, t: r.top };
-      }
-    }
-    measure();
-    window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
-  }, [profile, p]);
-
-  useEffect(() => {
-    return () => setDecor(0);
-  }, [setDecor]);
-
-  useEffect(() => {
-    document.body.style.overflow = p > 0.02 ? "hidden" : "";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [p]);
-
-  useEffect(() => {
-    function atTop() {
-      const main = document.querySelector("main");
-      const y = window.scrollY || document.documentElement.scrollTop || 0;
-      const my = main instanceof HTMLElement ? main.scrollTop : 0;
-      return y <= 2 && my <= 2;
-    }
-    function capture() {
-      if (origin.current || !avaBox.current) return;
-      const r = avaBox.current.getBoundingClientRect();
-      origin.current = { l: r.left, t: r.top };
-    }
     let wheelLock = false;
     function onWheel(e: WheelEvent) {
       const cur = Math.max(0, Math.min(1, Number(useUiStore.getState().profileDecor) || 0));
       const goingUp = e.deltaY < 0;
-      if (cur <= 0 && (!atTop() || !goingUp)) return;
-      if (cur <= 0 && goingUp) capture();
+      if (cur <= 0 && !goingUp) return;
+
       e.preventDefault();
       const mag = Math.abs(e.deltaY);
       let next = cur;
       if (mag >= 40) {
         if (wheelLock) return;
         wheelLock = true;
-        window.setTimeout(() => {
-          wheelLock = false;
-        }, 380);
-        next = Math.max(0, Math.min(1, cur + (goingUp ? 1 / 0.8 : -1 / 0.8)));
+        window.setTimeout(() => { wheelLock = false; }, 300);
+        next = Math.max(0, Math.min(1, cur + (goingUp ? 1 : -1)));
       } else {
-        next = Math.max(0, Math.min(1, cur - e.deltaY / 160));
+        next = Math.max(0, Math.min(1, cur - e.deltaY / 150));
       }
-      if (next <= 0) origin.current = null;
       setDecor(next);
     }
+
     let startY = 0;
     function onTouchStart(e: TouchEvent) {
       startY = e.touches[0]?.clientY ?? 0;
@@ -159,13 +121,13 @@ export function ProfilePage() {
       const dy = startY - y;
       startY = y;
       const cur = Math.max(0, Math.min(1, Number(useUiStore.getState().profileDecor) || 0));
-      if (cur <= 0 && (!atTop() || dy <= 0)) return;
-      if (cur <= 0 && dy > 0) capture();
+      if (cur <= 0 && dy <= 0) return;
+
       e.preventDefault();
-      const next = Math.max(0, Math.min(1, cur + dy / 140));
-      if (next <= 0) origin.current = null;
+      const next = Math.max(0, Math.min(1, cur + dy / 120));
       setDecor(next);
     }
+
     const opts = { passive: false, capture: true } as const;
     window.addEventListener("wheel", onWheel, opts);
     window.addEventListener("touchstart", onTouchStart, { passive: true, capture: true });
@@ -175,6 +137,10 @@ export function ProfilePage() {
       window.removeEventListener("touchstart", onTouchStart, true);
       window.removeEventListener("touchmove", onTouchMove, opts);
     };
+  }, [setDecor]);
+
+  useEffect(() => {
+    return () => setDecor(0);
   }, [setDecor]);
 
   const txStats = useMemo(() => {
@@ -233,216 +199,204 @@ export function ProfilePage() {
   if (isPending || !profile) return <Skeleton className="h-96" />;
 
   const name = nameDraft ?? profile.displayName;
-  const startSize = 168;
-  const endSize = (vp.w / 8) * 1.5;
-  const size = startSize + (endSize - startSize) * p;
-  const barH = vp.h / 5;
-  const endTop = vp.h - barH - size / 2;
-  const endLeft = 20;
-  const from = origin.current ?? { l: 20, t: endTop };
-  const avLeft = from.l + (endLeft - from.l) * p;
-  const avTop = from.t + (endTop - from.t) * p;
-  const fontPx = 24 * (size / startSize);
-  const coverH = vp.h * (0.33 + 0.545 * p);
 
   return (
-    <>
-      <div ref={slotRef} className="h-[33dvh] min-h-45 w-full" aria-hidden />
-      <button
-        ref={coverBox}
-        type="button"
+    <div 
+      ref={containerRef} 
+      className="relative h-full w-full flex flex-col bg-background select-none overflow-hidden"
+      style={{ "--p": 0 } as React.CSSProperties}
+    >
+      {/* 
+        TÍNH TOÁN KÍCH THƯỚC TRỰC TIẾP TRÊN CSS (CALC + CSS VARS)
+        Giúp GPU xử lý mượt mà 60-120fps, không gây lag JS main thread
+      */}
+      <style>{`
+        .cover-layer {
+          height: calc(33vh + (87.5vh - 33vh) * var(--p));
+          position: calc(var(--p) > 0.01 ? fixed : relative);
+          top: 0;
+          left: 0;
+          right: 0;
+          width: calc(var(--p) > 0.01 ? 100vw : 100%);
+          z-index: calc(var(--p) > 0.01 ? 100 : 0);
+        }
+        .bottom-backdrop {
+          opacity: var(--p);
+          width: calc(var(--p) > 0.01 ? 100vw : 100%);
+          z-index: calc(var(--p) > 0.01 ? 101 : 0);
+        }
+        .profile-hero-info {
+          position: calc(var(--p) > 0.01 ? fixed : relative);
+          top: calc(var(--p) > 0.01 ? calc(87.5vh - 90px) : auto);
+          left: calc(var(--p) > 0.01 ? 3rem : auto);
+          z-index: calc(var(--p) > 0.01 ? 102 : 20);
+        }
+        .hero-scale-box {
+          transform: scale(calc(1 + var(--p) * 0.45));
+          transform-origin: bottom left;
+          will-change: transform;
+        }
+        .cards-grid {
+          opacity: calc(1 - var(--p) * 2.5);
+          transform: translate3d(0, calc(var(--p) * 60px), 0);
+          pointer-events: calc(var(--p) > 0.05 ? none : auto);
+        }
+      `}</style>
+      
+      {/* 1. KHUNG ẢNH NỀN FULL VIEWPORT */}
+      <div 
+        className="cover-layer w-full shrink-0 overflow-hidden bg-[#4a5d4e] transform-gpu transition-none"
         onDoubleClick={() => coverRef.current?.click()}
-        className="overflow-hidden bg-[#4a5d4e]"
-        style={{
-          position: "fixed",
-          zIndex: 60,
-          top: (coverRest.t || 0) * (1 - p),
-          left: (coverRest.l || 0) * (1 - p),
-          width: (coverRest.w || vp.w) + (vp.w - (coverRest.w || vp.w)) * p,
-          height: (coverRest.h || vp.h * 0.33) + (coverH - (coverRest.h || vp.h * 0.33)) * p,
-        }}
-        title="Nhấp đúp để đổi ảnh nền"
       >
         {profile.coverData ? (
-          <img src={profile.coverData} alt="" className="h-full w-full object-cover" />
+          <img 
+            src={profile.coverData} 
+            alt="Cover" 
+            className="h-full w-full object-cover object-center" 
+          />
         ) : (
-          <div className="grid h-full place-items-center text-sm text-white/80">Nhấp đúp để chọn ảnh nền</div>
+          <div className="grid h-full place-items-center text-sm text-white/80">
+            Nhấp đúp để chọn ảnh nền
+          </div>
         )}
-      </button>
+      </div>
+
+      {/* 2. ĐÁY NỀN 1/8 MÀN HÌNH (Đặt Z-index thấp hơn Avatar/Tên) */}
       <div
-        className="h-[33dvh] min-h-45 w-full"
-        style={{ display: p > 0.01 ? "block" : "none" }}
-        aria-hidden
+        className="bottom-backdrop fixed bottom-0 left-0 right-0 bg-background pointer-events-none h-[12.5vh] transform-gpu transition-none"
       />
 
-      <input
-        ref={coverRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={async (e) => {
-          const f = e.target.files?.[0];
-          e.target.value = "";
-          if (!f) return;
-          const coverData = await readImage(f, 1920);
-          save.mutate({ data: { coverData } });
-        }}
-      />
-
-      <div className="relative z-[70] px-3 md:px-6">
-        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-start sm:gap-4">
-          <div
-            ref={avaSlot}
-            className="relative -mt-[84px] h-[168px] w-[168px] shrink-0"
-            aria-hidden
-          />
-          <button
-            ref={avaBox}
-            type="button"
-            onDoubleClick={() => avaRef.current?.click()}
-            className="fixed z-[80] overflow-hidden rounded-full border-4 border-background bg-muted shadow-md"
-            style={{
-              left: avLeft,
-              top: avTop,
-              width: size,
-              height: size,
-              pointerEvents: "auto",
-            }}
-            title="Nhấp đúp để đổi avatar"
-          >
-            {profile.avatarData ? (
-              <img src={profile.avatarData} alt="" className="h-full w-full object-cover" />
-            ) : (
-              <span className="grid h-full place-items-center text-muted-foreground">
-                <UserRound className="h-10 w-10" />
-              </span>
-            )}
-          </button>
-          <input
-            ref={avaRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={async (e) => {
-              const f = e.target.files?.[0];
-              e.target.value = "";
-              if (!f) return;
-              const avatarData = await readImage(f, 512);
-              save.mutate({ data: { avatarData } });
-            }}
-          />
-          <div
-            className="min-w-0 flex-1 pb-1"
-            style={{
-              position: "fixed",
-              zIndex: 80,
-              left: avLeft + size + 16,
-              top: avTop + size / 2 + 8,
-              pointerEvents: "auto",
-            }}
-          >
-            {editingName ? (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const next = name.trim() || "pixel200p";
-                  save.mutate(
-                    { data: { displayName: next } },
-                    { onSuccess: () => { setNameDraft(null); setEditingName(false); } },
-                  );
-                }}
+      {/* 3. KHỐI NỘI DUNG PROFILE */}
+      <div className="relative flex-1 flex flex-col px-4 md:px-8 pb-4 min-h-0">
+        
+        {/* Avatar + Tên (Z-Index cao nhất - 102) */}
+        <div className="profile-hero-info flex flex-col sm:flex-row items-start sm:items-end gap-4 shrink-0 transition-none -mt-16 sm:-mt-20">
+          <div className="hero-scale-box flex flex-col sm:flex-row items-start sm:items-end gap-4">
+            
+            {/* Avatar */}
+            <div className="relative shrink-0 w-28 h-28 sm:w-32 sm:h-32">
+              <button
+                type="button"
+                onDoubleClick={() => avaRef.current?.click()}
+                className="h-full w-full overflow-hidden rounded-full border-4 border-background bg-muted shadow-lg active:scale-95 transition-transform"
+                title="Nhấp đúp để đổi avatar"
               >
-                <Input
-                  autoFocus
-                  value={name}
-                  onChange={(e) => setNameDraft(e.target.value)}
-                  onBlur={() => {
+                {profile.avatarData ? (
+                  <img src={profile.avatarData} alt="Avatar" className="h-full w-full object-cover" />
+                ) : (
+                  <span className="grid h-full place-items-center text-muted-foreground">
+                    <UserRound className="h-12 w-12" />
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {/* Dòng Tên */}
+            <div className="min-w-0 flex-1 pb-1">
+              {editingName ? (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
                     const next = name.trim() || "pixel200p";
-                    if (next !== profile.displayName) {
-                      save.mutate(
-                        { data: { displayName: next } },
-                        { onSuccess: () => { setNameDraft(null); setEditingName(false); } },
-                      );
-                    } else {
-                      setNameDraft(null);
-                      setEditingName(false);
-                    }
+                    save.mutate(
+                      { data: { displayName: next } },
+                      { onSuccess: () => { setNameDraft(null); setEditingName(false); } }
+                    );
                   }}
-                  className="max-w-sm font-semibold tracking-tight"
-                  style={{ fontSize: fontPx }}
-                />
-              </form>
-            ) : (
-              <h1
-                className="cursor-text font-semibold tracking-tight"
-                style={{ fontSize: fontPx }}
-                title="Nhấp đúp để đổi tên"
-                onDoubleClick={() => setEditingName(true)}
-              >
-                {profile.displayName}
-              </h1>
-            )}
-            {p < 0.15 && (
-              <p className="text-xs text-muted-foreground">Nhấp đúp ảnh nền / avatar / tên để sửa</p>
-            )}
+                >
+                  <Input
+                    autoFocus
+                    value={name}
+                    onChange={(e) => setNameDraft(e.target.value)}
+                    onBlur={() => {
+                      const next = name.trim() || "pixel200p";
+                      if (next !== profile.displayName) {
+                        save.mutate(
+                          { data: { displayName: next } },
+                          { onSuccess: () => { setNameDraft(null); setEditingName(false); } }
+                        );
+                      } else {
+                        setNameDraft(null);
+                        setEditingName(false);
+                      }
+                    }}
+                    className="max-w-sm text-2xl font-bold tracking-tight"
+                  />
+                </form>
+              ) : (
+                <h1
+                  className="cursor-text text-2xl sm:text-3xl font-bold tracking-tight drop-shadow-md select-none text-foreground"
+                  title="Nhấp đúp để đổi tên"
+                  onDoubleClick={() => setEditingName(true)}
+                >
+                  {profile.displayName}
+                </h1>
+              )}
+            </div>
           </div>
         </div>
 
-        <div
-          className="mt-6 grid gap-4 lg:grid-cols-3"
-          style={{
-            opacity: Math.max(0, 1 - p),
-            transform: `translateY(${p * 110}vh)`,
-            pointerEvents: p > 0.08 ? "none" : "auto",
-          }}
-        >
-          <Card className="min-h-64">
-            <CardTitle>Thống kê lệnh</CardTitle>
-            <CardDesc className="mb-3">Không tính lệnh đã xóa</CardDesc>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="rounded-lg bg-background/70 px-3 py-2">
-                <p className="text-[11px] text-muted-foreground">Đang mở</p>
-                <p className="font-mono text-2xl font-semibold tabular-nums">{txStats.open}</p>
-              </div>
-              <div className="rounded-lg bg-background/70 px-3 py-2">
-                <p className="text-[11px] text-muted-foreground">Đã chốt</p>
-                <p className="font-mono text-2xl font-semibold tabular-nums">{txStats.closed}</p>
-              </div>
+        {/* 4. CHỨA 3 CARD */}
+        <div className="cards-grid mt-4 flex-1 min-h-0 grid gap-4 grid-cols-1 lg:grid-cols-3 transform-gpu transition-none">
+          {/* Card 1: Thống kê */}
+          <Card className="flex flex-col h-full min-h-0 overflow-hidden p-5">
+            <div className="shrink-0">
+              <CardTitle>Thống kê lệnh</CardTitle>
+              <CardDesc className="mb-3">Không tính lệnh đã xóa</CardDesc>
             </div>
-            <p className="mt-3 text-xs text-muted-foreground">
-              Mua {txStats.buys} · Bán {txStats.sells}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Sổ Bank: đang gửi {txStats.bankOpen} · tất toán {txStats.bankClosed}
-            </p>
+            <div className="flex-1 overflow-y-auto pr-1 space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-lg bg-background/70 px-3 py-2">
+                  <p className="text-[11px] text-muted-foreground">Đang mở</p>
+                  <p className="font-mono text-2xl font-semibold tabular-nums">{txStats.open}</p>
+                </div>
+                <div className="rounded-lg bg-background/70 px-3 py-2">
+                  <p className="text-[11px] text-muted-foreground">Đã chốt</p>
+                  <p className="font-mono text-2xl font-semibold tabular-nums">{txStats.closed}</p>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Mua {txStats.buys} · Bán {txStats.sells}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Sổ Bank: đang gửi {txStats.bankOpen} · tất toán {txStats.bankClosed}
+              </p>
+            </div>
           </Card>
-          <Card className="min-h-64 border-dashed">
-            <CardTitle className="text-muted-foreground">Trống</CardTitle>
+
+          {/* Card 2: Trống */}
+          <Card className="flex flex-col h-full min-h-0 overflow-hidden border-dashed p-5">
+            <CardTitle className="text-muted-foreground shrink-0">Trống</CardTitle>
             <CardDesc>Sẽ bổ sung sau</CardDesc>
           </Card>
-          <Card className="flex min-h-64 flex-col">
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <CardTitle>Performance history</CardTitle>
-              <FilterMenu
-                value={kindFilter}
-                onChange={setKindFilter}
-                options={[
-                  { id: "ALL", label: "All" },
-                  { id: "nav", label: "NAV" },
-                  { id: "orig", label: "Original" },
-                  { id: "pnl", label: "Lãi/lỗ" },
-                  { id: "tplus", label: "T+" },
-                  { id: "DCDS", label: "DCDS" },
-                  { id: "ETF", label: "ETF" },
-                  { id: "VPS", label: "VPS" },
-                  { id: "SSI", label: "SSI" },
-                  { id: "CRYPTO", label: "Crypto" },
-                  { id: "BANK", label: "Bank" },
-                ]}
-              />
+
+          {/* Card 3: Performance History */}
+          <Card className="flex flex-col h-full min-h-0 overflow-hidden p-5">
+            <div className="shrink-0 mb-2">
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle>Performance history</CardTitle>
+                <FilterMenu
+                  value={kindFilter}
+                  onChange={setKindFilter}
+                  options={[
+                    { id: "ALL", label: "All" },
+                    { id: "nav", label: "NAV" },
+                    { id: "orig", label: "Original" },
+                    { id: "pnl", label: "Lãi/lỗ" },
+                    { id: "tplus", label: "T+" },
+                    { id: "DCDS", label: "DCDS" },
+                    { id: "ETF", label: "ETF" },
+                    { id: "VPS", label: "VPS" },
+                    { id: "SSI", label: "SSI" },
+                    { id: "CRYPTO", label: "Crypto" },
+                    { id: "BANK", label: "Bank" },
+                  ]}
+                />
+              </div>
+              <CardDesc className="mt-1">Ngày đầu tiên cán mốc · mới nhất trên cùng</CardDesc>
             </div>
-            <CardDesc className="mb-3">Ngày đầu tiên cán mốc · mới nhất trên cùng</CardDesc>
-            <div className="min-h-0 max-h-[min(52vh,28rem)] flex-1 overflow-y-auto pr-1">
+
+            <div className="flex-1 min-h-0 overflow-y-auto pr-1 mt-2">
               {marksPending && <p className="text-sm text-muted-foreground">Đang tính mốc…</p>}
               {!marksPending && timeline.length === 0 && (
                 <p className="text-sm text-muted-foreground">
@@ -471,6 +425,6 @@ export function ProfilePage() {
           </Card>
         </div>
       </div>
-    </>
+    </div>
   );
 }
