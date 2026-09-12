@@ -88,7 +88,12 @@ export const useUiStore = create<UiState>()(
     }),
     {
       name: "pm-ui",
-      partialize: (s) => ({ theme: s.theme, currency: s.currency, stockFilter: s.stockFilter }),
+      partialize: (s) => ({
+        theme: s.theme,
+        loginTheme: s.loginTheme,
+        currency: s.currency,
+        stockFilter: s.stockFilter,
+      }),
     },
   ),
 );
