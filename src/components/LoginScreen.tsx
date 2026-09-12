@@ -1,4 +1,4 @@
-import { GROK_PROVIDERS, authClient, authEnabled, signIn } from "@/lib/auth/client";
+import { authClient, authEnabled } from "@/lib/auth/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,7 +19,11 @@ export function LoginScreen() {
     setError(null);
     try {
       if (mode === "up") {
-        const { error: err } = await authClient.signUp.email({ email, password, name: name || email });
+        const { error: err } = await authClient.signUp.email({
+          email,
+          password,
+          name: name || email,
+        });
         if (err) throw new Error(err.message);
       } else {
         const { error: err } = await authClient.signIn.email({ email, password });
@@ -34,69 +38,113 @@ export function LoginScreen() {
   }
 
   return (
-    <main className="grid min-h-dvh place-items-center bg-background p-4">
-      <div className="w-full max-w-sm space-y-5 rounded-xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
-        <div className="flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-lg bg-navy-deep text-primary-foreground">
-            <BarChart3 className="h-5 w-5" />
+    <main className="login-stage grid min-h-dvh place-items-center p-4 sm:p-8">
+      <div className="login-card relative flex w-full max-w-[980px] overflow-hidden">
+        {/* ===== Trái: trắng xoá ===== */}
+        <aside className="relative hidden w-[46%] bg-white lg:block">
+          <div className="login-left-mark" />
+          <div className="absolute inset-0 flex flex-col items-center justify-center px-10">
+            <div className="grid h-16 w-16 place-items-center rounded-2xl bg-[#0a2540] text-white shadow-lg">
+              <BarChart3 className="h-8 w-8" />
+            </div>
+            <p className="mt-8 text-[11px] font-semibold tracking-[0.55em] text-[#0a2540]/35">
+              WELCOME
+            </p>
+            <h2 className="mt-3 text-center text-3xl font-semibold tracking-tight text-[#0a2540]">
+              Portfolio
+              <span className="block font-normal text-[#0a2540]/55">Manager</span>
+            </h2>
+            <p className="mt-3 text-center text-sm text-[#0a2540]/45">Sổ cái danh mục · Trade T+</p>
           </div>
-          <div>
-            <h1 className="text-lg font-semibold">Portfolio Manager</h1>
-            <p className="text-xs text-muted-foreground">Sổ cái danh mục · Trade T+</p>
-          </div>
+        </aside>
+
+        {/* ===== Đường uốn lượn (navy đè lên trắng) ===== */}
+        <div className="login-wave pointer-events-none absolute inset-y-0 left-[38%] z-10 hidden w-[22%] lg:block" aria-hidden>
+          <svg viewBox="0 0 120 800" preserveAspectRatio="none" className="h-full w-full">
+            <path
+              d="M18,0
+                 C72,70  108,150  62,250
+                 C8,360  110,430  58,540
+                 C18,630  86,710  40,800
+                 L120,800 L120,0 Z"
+              fill="#0a2540"
+            />
+          </svg>
         </div>
 
-        {authEnabled ? (
-          <>
-            <div className="space-y-2">
-              {GROK_PROVIDERS.map((p) => (
-                <Button
-                  key={p.providerId}
+        {/* ===== Phải: form navy ===== */}
+        <section className="relative z-0 flex w-full flex-col justify-center bg-[#0a2540] px-8 py-14 text-white sm:px-12 lg:w-[54%] lg:py-16 lg:pl-24 lg:pr-16">
+          <div className="login-orbs" aria-hidden />
+
+          <div className="relative mx-auto w-full max-w-[340px] space-y-7">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/45">
+                Portfolio Manager
+              </p>
+              <h1 className="mt-2 text-[1.85rem] font-semibold leading-snug tracking-tight">
+                Xin chào!
+              </h1>
+              <p className="mt-1.5 text-[15px] text-white/70">Rất vui được gặp bạn :)</p>
+            </div>
+
+            {authEnabled ? (
+              <>
+                <form className="space-y-4" onSubmit={onEmail}>
+                  {mode === "up" && (
+                    <div className="space-y-1.5">
+                      <Label className="text-[13px] font-medium text-white/70">Tên</Label>
+                      <Input
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="Tên của bạn"
+                        className="login-field"
+                      />
+                    </div>
+                  )}
+                  <div className="space-y-1.5">
+                    <Label className="text-[13px] font-medium text-white/70">Email</Label>
+                    <Input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      placeholder="Email"
+                      className="login-field"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[13px] font-medium text-white/70">Mật khẩu</Label>
+                    <Input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      minLength={8}
+                      placeholder="Mật khẩu"
+                      className="login-field"
+                    />
+                  </div>
+
+                  {error && <p className="text-sm text-red-300">{error}</p>}
+
+                  <Button type="submit" disabled={busy} className="login-submit">
+                    {busy ? "Đang xử lý..." : mode === "up" ? "Tạo tài khoản" : "Đăng nhập"}
+                  </Button>
+                </form>
+
+                <button
                   type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => signIn(p.providerId, { callbackURL: "/" })}
+                  className="w-full text-center text-sm text-white/55 transition hover:text-white"
+                  onClick={() => setMode(mode === "up" ? "in" : "up")}
                 >
-                  Tiếp tục với {p.label}
-                </Button>
-              ))}
-            </div>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="h-px flex-1 bg-border" />
-              hoặc email
-              <span className="h-px flex-1 bg-border" />
-            </div>
-            <form className="space-y-3" onSubmit={onEmail}>
-              {mode === "up" && (
-                <div className="space-y-1">
-                  <Label>Tên</Label>
-                  <Input value={name} onChange={(e) => setName(e.target.value)} />
-                </div>
-              )}
-              <div className="space-y-1">
-                <Label>Email</Label>
-                <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-              </div>
-              <div className="space-y-1">
-                <Label>Mật khẩu</Label>
-                <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} />
-              </div>
-              {error && <p className="text-sm text-loss">{error}</p>}
-              <Button type="submit" className="w-full" disabled={busy}>
-                {busy ? "Đang xử lý..." : mode === "up" ? "Tạo tài khoản" : "Đăng nhập"}
-              </Button>
-            </form>
-            <button
-              type="button"
-              className="w-full text-center text-sm text-muted-foreground hover:text-foreground"
-              onClick={() => setMode(mode === "up" ? "in" : "up")}
-            >
-              {mode === "up" ? "Đã có tài khoản? Đăng nhập" : "Chưa có tài khoản? Đăng ký"}
-            </button>
-          </>
-        ) : (
-          <p className="text-sm text-muted-foreground">Đăng nhập đang tắt.</p>
-        )}
+                  {mode === "up" ? "Đã có tài khoản? Đăng nhập" : "Chưa có tài khoản? Đăng ký"}
+                </button>
+              </>
+            ) : (
+              <p className="text-sm text-white/60">Đăng nhập đang tắt.</p>
+            )}
+          </div>
+        </section>
       </div>
     </main>
   );

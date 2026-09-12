@@ -4,6 +4,7 @@ import type { AssetType, TxType } from "@/engine/types";
 
 export type ThemeMode = "light" | "dark";
 export type DisplayCurrency = "VND" | "USD";
+export type LoginThemeId = "aurora" | "midnight" | "ember" | "forest" | "pixel";
 
 export type TxPrefill = {
   id?: string;
@@ -28,6 +29,7 @@ export type TxPrefill = {
 
 type UiState = {
   theme: ThemeMode;
+  loginTheme: LoginThemeId;
   currency: DisplayCurrency;
   stockFilter: "ALL" | "vps" | "ssi";
   txOpen: TxPrefill | null;
@@ -37,6 +39,7 @@ type UiState = {
   notifyOpen: boolean;
   profileDecor: number;
   setTheme: (t: ThemeMode) => void;
+  setLoginTheme: (t: LoginThemeId) => void;
   toggleTheme: () => void;
   toggleCurrency: () => void;
   setStockFilter: (f: UiState["stockFilter"]) => void;
@@ -55,6 +58,7 @@ export const useUiStore = create<UiState>()(
   persist(
     (set, get) => ({
       theme: "light",
+      loginTheme: "aurora",
       currency: "VND",
       stockFilter: "ALL",
       txOpen: null,
@@ -64,6 +68,7 @@ export const useUiStore = create<UiState>()(
       notifyOpen: false,
       profileDecor: 0,
       setTheme: (theme) => set({ theme }),
+      setLoginTheme: (loginTheme) => set({ loginTheme }),
       toggleTheme: () => set({ theme: get().theme === "light" ? "dark" : "light" }),
       toggleCurrency: () => set({ currency: get().currency === "VND" ? "USD" : "VND" }),
       setStockFilter: (stockFilter) => set({ stockFilter }),

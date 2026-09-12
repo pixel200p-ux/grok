@@ -149,3 +149,138 @@ html.dark {
 .table-scroll table {
   min-width: 640px;
 }
+/* ========== Login themes (riêng, không đụng dark/light) ========== */
+.login-theme-aurora .login-bg {
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 30%, #4f46e5 0%, transparent 50%),
+    radial-gradient(ellipse 70% 50% at 80% 70%, #ec4899 0%, transparent 45%),
+    radial-gradient(ellipse 60% 40% at 50% 50%, #06b6d4 0%, transparent 50%),
+    #0f172a;
+}
+.login-theme-aurora .login-glow {
+  background: radial-gradient(circle at 50% 0%, rgba(139, 92, 246, 0.25), transparent 55%);
+}
+
+.login-theme-midnight .login-bg {
+  background:
+    radial-gradient(ellipse 90% 70% at 50% 0%, #1e3a5f 0%, transparent 55%),
+    linear-gradient(180deg, #020617 0%, #0f172a 100%);
+}
+.login-theme-midnight .login-glow {
+  background: radial-gradient(circle at 70% 80%, rgba(56, 189, 248, 0.12), transparent 40%);
+}
+
+.login-theme-ember .login-bg {
+  background:
+    radial-gradient(ellipse 80% 50% at 30% 80%, #ea580c 0%, transparent 50%),
+    radial-gradient(ellipse 60% 40% at 80% 20%, #b91c1c 0%, transparent 45%),
+    #1c0a00;
+}
+.login-theme-ember .login-glow {
+  background: radial-gradient(circle at 50% 100%, rgba(251, 146, 60, 0.2), transparent 50%);
+}
+
+.login-theme-forest .login-bg {
+  background:
+    radial-gradient(ellipse 70% 60% at 20% 70%, #166534 0%, transparent 50%),
+    radial-gradient(ellipse 50% 40% at 80% 30%, #14532d 0%, transparent 45%),
+    #052e16;
+}
+.login-theme-forest .login-glow {
+  background: radial-gradient(circle at 40% 20%, rgba(74, 222, 128, 0.15), transparent 45%);
+}
+
+.login-theme-pixel .login-bg {
+  background-color: #0c0a1d;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+.login-theme-pixel .login-glow {
+  background:
+    radial-gradient(circle at 25% 30%, #a855f7 0%, transparent 25%),
+    radial-gradient(circle at 75% 70%, #22d3ee 0%, transparent 25%);
+  opacity: 0.35;
+  filter: contrast(1.2);
+}
+
+.login-noise {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+/* ===== Login screen (navy + white, wave card) ===== */
+.login-stage {
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 110%, rgba(10, 37, 64, 0.18), transparent 60%),
+    #e8ecef;
+}
+
+.login-card {
+  min-height: 580px;
+  border-radius: 28px;
+  background: #fff;
+  box-shadow:
+    0 2px 4px rgba(10, 37, 64, 0.06),
+    0 28px 64px -18px rgba(10, 37, 64, 0.28);
+}
+
+.login-left-mark {
+  position: absolute;
+  inset: auto auto 12% 12%;
+  width: 220px;
+  height: 220px;
+  border-radius: 999px;
+  border: 1px solid rgba(10, 37, 64, 0.08);
+  box-shadow: 0 0 0 28px rgba(10, 37, 64, 0.035);
+}
+
+.login-orbs {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 88% 18%, rgba(255, 255, 255, 0.09), transparent 28%),
+    radial-gradient(circle at 18% 92%, rgba(197, 212, 224, 0.12), transparent 32%);
+}
+
+.login-field {
+  height: 2.75rem !important;
+  min-height: 2.75rem !important;
+  border-radius: 999px !important;
+  border-color: rgba(255, 255, 255, 0.28) !important;
+  background: transparent !important;
+  padding-left: 1.1rem !important;
+  padding-right: 1.1rem !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+.login-field::placeholder {
+  color: rgba(255, 255, 255, 0.38);
+}
+.login-field:focus-visible {
+  ring: none;
+  outline: none;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.45) !important;
+}
+
+.login-submit {
+  margin-top: 0.35rem;
+  height: 2.75rem !important;
+  width: 100%;
+  border-radius: 999px !important;
+  background: #c5d4e0 !important;
+  color: #0a2540 !important;
+  font-size: 0.95rem !important;
+  font-weight: 600 !important;
+}
+.login-submit:hover {
+  background: #ffffff !important;
+}
+
+@media (max-width: 1023px) {
+  .login-card {
+    min-height: auto;
+    max-width: 420px;
+  }
+}
